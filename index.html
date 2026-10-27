@@ -385,8 +385,8 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
   const yToe=py+rise;
   const centerBoundary=cx;
   const mass=key==='left'
-    ? `M${root} ${py} L${toe} ${yToe} L${toe} ${baseEarth} H${centerBoundary} V${py} Z`
-    : `M${centerBoundary} ${py} H${root} L${toe} ${yToe} V${baseEarth} H${centerBoundary} Z`;
+    ? `M${root} ${py} L${toe} ${yToe} L${toe} ${baseEarth} H${centerBoundary} V${py-crown} L${root} ${py} Z`
+    : `M${centerBoundary} ${py-crown} L${root} ${py} L${toe} ${yToe} V${baseEarth} H${centerBoundary} Z`;
   return `<path data-ground="${key}-fill" d="${mass}" fill="url(#${pat(side)})" stroke="none"/>
   <path d="M${root} ${py} L${toe} ${yToe}" stroke="#263f50" stroke-width="3" fill="none"/>`;
  }
@@ -435,8 +435,8 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
   const contact=key==='left'?Math.min(cx,outside+contactRun):Math.max(cx,outside-contactRun);
   const foundationPattern=L.type==='fill'?pat(L):R.type==='fill'?pat(R):'earth';
   const path=key==='left'
-   ? `M${root} ${py} L${inside} ${yB} H${outside} L${contact} ${baseEarth} H${cx} V${py} Z`
-   : `M${cx} ${py} H${root} L${inside} ${yB} H${outside} L${contact} ${baseEarth} H${cx} Z`;
+   ? `M${root} ${py} L${inside} ${yB} H${outside} L${contact} ${baseEarth} H${cx} V${py-crown} L${root} ${py} Z`
+   : `M${cx} ${py-crown} L${root} ${py} L${inside} ${yB} H${outside} L${contact} ${baseEarth} H${cx} Z`;
   return `<path data-under-ditch="${key}" d="${path}" fill="url(#${foundationPattern})" stroke="none"/>`;
  }
  function inlineSlopeLabel(kind,side,x1,y1,x2,y2,value,offset){
@@ -463,8 +463,8 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
   out+=`<circle cx="${anchorX}" cy="${py-4}" r="4" fill="#f9fcfd" stroke="#435f70" stroke-width="1.5"/>`;
   out+=`<rect x="${x}" y="${y}" width="450" height="${height}" rx="12" fill="#ffffff" stroke="#cbdce5" stroke-width="1.3" opacity=".97"/>`;
   let row=0;
-  if(fiber){out+=`<path d="M${x+18} ${y+22} H${x+59}" stroke="#13aad5" stroke-width="4"/><text x="${x+74}" y="${y+27}" font-size="16" font-weight="750" fill="#214456">Fiberduk – skille-/filterlag</text>`;row++;}
-  if(net){const yy=y+22+row*27;out+=`<path d="M${x+18} ${yy} H${x+59}" stroke="#986fc0" stroke-width="4" stroke-dasharray="7 4"/><text x="${x+74}" y="${yy+5}" font-size="16" font-weight="750" fill="#214456">Geonett – armering</text>`;}
+  if(fiber){out+=`<path d="M${x+18} ${y+22} H${x+59}" stroke="#13aad5" stroke-width="4" fill="none"/><text x="${x+74}" y="${y+27}" font-size="16" font-weight="750" fill="#214456">Fiberduk – skille-/filterlag</text>`;row++;}
+  if(net){const yy=y+22+row*27;out+=`<path d="M${x+18} ${yy} H${x+59}" stroke="#986fc0" stroke-width="4" stroke-dasharray="7 4" fill="none"/><text x="${x+74}" y="${yy+5}" font-size="16" font-weight="750" fill="#214456">Geonett – armering</text>`;}
   return `<g data-geosynthetic-labels="${synt}">${out}</g>`;
  }
  function annotations(){
@@ -507,15 +507,15 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  <pattern id="moraine" width="34" height="28" patternUnits="userSpaceOnUse"><rect width="34" height="28" fill="#b39c85"/><circle cx="6" cy="7" r="3" fill="#7f736a"/><path d="M17 5l8 1 3 8-12 3z" fill="#877b6e"/><circle cx="23" cy="24" r="2.4" fill="#dccbb5"/></pattern>
  <pattern id="sediment" width="34" height="26" patternUnits="userSpaceOnUse"><rect width="34" height="26" fill="#b9aa9c"/><path d="M0 8H34 M0 15H34 M0 22H34" stroke="#84766c" stroke-width="1"/></pattern>
  </defs>
- <!-- Fill material continues below the grøft but terminates at the toe of each filling slope. -->
+ <!-- Underbygning reaches the crowned planum at the centerline and edge elevations at both shoulders. -->
  ${L.type==='fill'&&R.type==='fill'
-  ? `<path data-ground="left-foundation" d="M${cx} ${py} H${baseL} L${leftFillToe} ${leftToeY} V${baseEarth} H${cx} Z" fill="url(#${pat(L)})"/>
-  <path data-ground="right-foundation" d="M${cx} ${py} H${baseR} L${rightFillToe} ${rightToeY} V${baseEarth} H${cx} Z" fill="url(#${pat(R)})"/>`
+  ? `<path data-ground="left-foundation" d="M${cx} ${py-crown} L${baseL} ${py} L${leftFillToe} ${leftToeY} V${baseEarth} H${cx} Z" fill="url(#${pat(L)})"/>
+  <path data-ground="right-foundation" d="M${cx} ${py-crown} L${baseR} ${py} L${rightFillToe} ${rightToeY} V${baseEarth} H${cx} Z" fill="url(#${pat(R)})"/>`
   : R.type==='fill'
-   ? `<path data-ground="fill-foundation" d="M20 ${py} H${baseR} L${rightFillToe} ${rightToeY} V${baseEarth} H20 Z" fill="url(#${pat(R)})"/>`
+   ? `<path data-ground="fill-foundation" d="M20 ${py} L${baseL} ${py} L${cx} ${py-crown} L${baseR} ${py} L${rightFillToe} ${rightToeY} V${baseEarth} H20 Z" fill="url(#${pat(R)})"/>`
    : L.type==='fill'
-    ? `<path data-ground="fill-foundation" d="M1480 ${py} H${baseL} L${leftFillToe} ${leftToeY} V${baseEarth} H1480 Z" fill="url(#${pat(L)})"/>`
-    : `<rect data-ground="existing-foundation" x="${baseL}" y="${py}" width="${baseR-baseL}" height="${baseEarth-py}" fill="url(#earth)"/>`}
+    ? `<path data-ground="fill-foundation" d="M1480 ${py} L${baseR} ${py} L${cx} ${py-crown} L${baseL} ${py} L${leftFillToe} ${leftToeY} V${baseEarth} H1480 Z" fill="url(#${pat(L)})"/>`
+    : `<path data-ground="existing-foundation" d="M${baseL} ${py} L${cx} ${py-crown} L${baseR} ${py} V${baseEarth} H${baseL} Z" fill="url(#earth)"/>`}
  <!-- Fill masses extend across the road foundation and down to the section datum. -->
  ${renderFilling('left',L,baseL)}${renderFilling('right',R,baseR)}
  <!-- Base beneath grøft is underbygning/fylling, bounded by the inclined rock contact. -->
@@ -526,8 +526,8 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  ${extraMm>0?`<path data-layer="forsterkningslag" d="${layer(yBase,py)}" fill="url(#rein)" stroke="#4c6556" stroke-width="2.3"/>`:''}
  <path d="${layer(yWear,yBase)}" fill="url(#base)" stroke="#4d5960" stroke-width="1.5"/>
  <path d="${layer(yTop,yWear)}" fill="url(#wear)" stroke="#816a58" stroke-width="1.5"/>
- ${synt==='fiberduk'||synt==='both'?`<path d="M${baseL} ${py-2} L${cx} ${py-crown-2} L${baseR} ${py-2}" stroke="#13aad5" stroke-width="3"/>`:''}
- ${synt==='geonett'||synt==='both'?`<path d="M${baseL} ${py-6} L${cx} ${py-crown-6} L${baseR} ${py-6}" stroke="#986fc0" stroke-width="3" stroke-dasharray="9 5"/>`:''}
+ ${synt==='fiberduk'||synt==='both'?`<path d="M${baseL} ${py-2} L${cx} ${py-crown-2} L${baseR} ${py-2}" stroke="#13aad5" stroke-width="3" fill="none"/>`:''}
+ ${synt==='geonett'||synt==='both'?`<path d="M${baseL} ${py-6} L${cx} ${py-crown-6} L${baseR} ${py-6}" stroke="#986fc0" stroke-width="3" stroke-dasharray="9 5" fill="none"/>`:''}
  <path data-road-outline="true" d="M${xTopL} ${yTop} L${cx} ${yTop-crown} L${xTopR} ${yTop} L${baseR} ${py} L${cx} ${py-crown} L${baseL} ${py} Z" stroke="#243b4c" stroke-width="2.6" fill="none"/>
  <text x="${cx}" y="29" text-anchor="middle" font-size="17" font-weight="800" fill="#173044">Veiklasse 3 · prinsippsnitt</text>
  <g data-width-annotation="true" fill="none" stroke="#547183" stroke-width="1.7">
