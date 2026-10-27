@@ -345,20 +345,42 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  const baseL=xLeft(py),baseR=xRight(py);
  const layer=(a,b)=>`M${xLeft(a)} ${a} H${xRight(a)} L${xRight(b)} ${b} H${xLeft(b)} Z`;
  const pat=s=>({solidrock:'rockSolid',looserock:'rockLoose',stone:'gravel',sand:'sand',moraine:'moraine',fine:'sediment',blasted:'rockLoose',rockgravel:'gravel',sandmoraine:'moraine'})[s.material.id]||'moraine';
- function renderSide(key,s,root){
-  const sign=key==='left'?-1:1,h=s.height*1000*scale;
-  if(s.type==='fill'){
-   const foot=root+sign*h*s.ratio,y=py+h;
-   return `<path d="M${root} ${py} L${foot} ${y} H${root} Z" fill="url(#${pat(s)})" stroke="#344959" stroke-width="2"/>
-   <path d="M${root} ${py} L${foot} ${y}" stroke="#1f4357" stroke-width="3" fill="none"/>`;
-  }
-  const yB=py+dep*scale,inX=root+sign*dep*scale*m,outX=inX+sign*bot*scale;
-  const crest=outX+sign*h*s.ratio,yCrest=yB-h,end=key==='left'?16:1484;
-  const soil=key==='left'?`M${end} ${yCrest} H${crest} L${outX} ${yB} V${baseEarth} H${end} Z`:`M${crest} ${yCrest} H${end} V${baseEarth} H${outX} V${yB} Z`;
-  return `<path d="${soil}" fill="url(#${pat(s)})" stroke="#5e6870" stroke-width="1.5"/>
-  <path d="M${crest} ${yCrest} L${outX} ${yB}" stroke="#334655" stroke-width="3" fill="none"/>
-  <path d="M${root} ${py} L${inX} ${yB} H${outX}" stroke="#157ca2" stroke-width="3.5" fill="none"/>
-  <text x="${(inX+outX)/2}" y="${yB+23}" text-anchor="middle" font-size="12" font-weight="750" fill="#185773">Grøft ${dep} mm</text>`;
+  // Fill masses are carried down to the bottom of the section and continue beneath
+ // their half of the road foundation instead of ending as hollow slope triangles.
+ function renderFilling(key,side,root){
+  if(side.type!=='fill')return '';
+  const direction=key==='left'?-1:1;
+  const rise=side.height*1000*scale;
+  const toe=root+direction*rise*side.ratio;
+  const yToe=py+rise;
+  const centerBoundary=cx;
+  const mass=key==='left'
+    ? `M${root} ${py} L${toe} ${yToe} L${toe} ${baseEarth} H${centerBoundary} V${py} Z`
+    : `M${centerBoundary} ${py} H${root} L${toe} ${yToe} V${baseEarth} H${centerBoundary} Z`;
+  return `<path data-ground="${key}-fill" d="${mass}" fill="url(#${pat(side)})" stroke="none"/>
+  <path d="M${root} ${py} L${toe} ${yToe}" stroke="#263f50" stroke-width="3" fill="none"/>`;
+ }
+ // A cut rock face is a geological mass, not a thin wall. The diagonal lower
+ // boundary descends from the ditch excavation into the subsurface at section bottom.
+ function renderRockCut(key,side,root){
+  if(side.type!=='cut')return '';
+  const sign=key==='left'?-1:1,rise=side.height*1000*scale;
+  const yB=py+dep*scale,inside=root+sign*dep*scale*m,outside=inside+sign*bot*scale;
+  const crest=outside+sign*rise*side.ratio,yCrest=yB-rise;
+  const edge=key==='left'?16:1484;
+  const availableDepth=Math.max(0,baseEarth-yB);
+  const undergroundRun=Math.max(75,availableDepth*.95);
+  const deepContact=key==='left'
+    ? Math.min(cx,outside+undergroundRun)
+    : Math.max(cx,outside-undergroundRun);
+  const rockMass=key==='left'
+    ? `M${edge} ${yCrest} H${crest} L${outside} ${yB} L${deepContact} ${baseEarth} H${edge} Z`
+    : `M${crest} ${yCrest} H${edge} V${baseEarth} H${deepContact} L${outside} ${yB} Z`;
+  return `<path data-ground="${key}-cut" d="${rockMass}" fill="url(#${pat(side)})" stroke="#59636b" stroke-width="1.4"/>
+  <path d="M${crest} ${yCrest} L${outside} ${yB}" stroke="#334655" stroke-width="3" fill="none"/>
+  <path d="M${outside} ${yB} L${deepContact} ${baseEarth}" stroke="#344a57" stroke-width="2" fill="none"/>
+  <path d="M${root} ${py} L${inside} ${yB} H${outside}" stroke="#157ca2" stroke-width="3.5" fill="none" stroke-linejoin="round"/>
+  <text x="${(inside+outside)/2}" y="${yB+23}" text-anchor="middle" font-size="12" font-weight="750" fill="#185773">Grøft ${dep} mm</text>`;
  }
  function label(key,s){
   const x=key==='left'?30:1050;
@@ -379,9 +401,13 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  <pattern id="moraine" width="34" height="28" patternUnits="userSpaceOnUse"><rect width="34" height="28" fill="#b39c85"/><circle cx="6" cy="7" r="3" fill="#7f736a"/><path d="M17 5l8 1 3 8-12 3z" fill="#877b6e"/><circle cx="23" cy="24" r="2.4" fill="#dccbb5"/></pattern>
  <pattern id="sediment" width="34" height="26" patternUnits="userSpaceOnUse"><rect width="34" height="26" fill="#b9aa9c"/><path d="M0 8H34 M0 15H34 M0 22H34" stroke="#84766c" stroke-width="1"/></pattern>
  </defs>
- <rect x="20" y="${py}" width="1460" height="${baseEarth-py}" fill="url(#earth)" opacity=".35"/>
+ <!-- No full-width pale background: only actual geological bodies are textured. -->
  <rect x="${baseL}" y="${py}" width="${baseR-baseL}" height="${baseEarth-py}" fill="url(#earth)" stroke="#705b4c" stroke-width="1.5"/>
- ${renderSide('left',L,baseL)}${renderSide('right',R,baseR)}
+ <!-- Fill masses extend across the road foundation and down to the section datum. -->
+ ${renderFilling('left',L,baseL)}${renderFilling('right',R,baseR)}
+ <!-- Cut geology overlays fill where bedrock continues diagonally under the road. -->
+ ${renderRockCut('left',L,baseL)}${renderRockCut('right',R,baseR)}
+ <line x1="20" y1="${baseEarth}" x2="1480" y2="${baseEarth}" stroke="#7a8c99" stroke-width="1.4" opacity=".75"/>
  ${extraMm>0?`<path d="${layer(yBase,py)}" fill="url(#rein)" stroke="#65736e" stroke-width="1.5"/>`:''}
  <path d="${layer(yWear,yBase)}" fill="url(#base)" stroke="#4d5960" stroke-width="1.5"/>
  <path d="${layer(yTop,yWear)}" fill="url(#wear)" stroke="#816a58" stroke-width="1.5"/>
