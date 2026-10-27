@@ -390,6 +390,22 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
   <path d="M${root} ${py} L${inside} ${yB} H${outside}" stroke="#157ca2" stroke-width="3.5" fill="none" stroke-linejoin="round"/>
   <text x="${(inside+outside)/2}" y="${yB+23}" text-anchor="middle" font-size="12" font-weight="750" fill="#185773">Grøft ${dep} mm</text>`;
  }
+ // Under each ditch, the subgrade occupies the space from the ditch bottom
+ // down to the bedrock contact. Use fill material when a fill bank exists,
+ // otherwise use the ordinary underbygning texture.
+ function renderCutFoundation(key,side,root){
+  if(side.type!=='cut')return '';
+  const sign=key==='left'?-1:1,yB=py+dep*scale;
+  const inside=root+sign*dep*scale*m;
+  const outside=inside+sign*bot*scale;
+  const contactRun=Math.max(75,Math.max(0,baseEarth-yB)*.95);
+  const contact=key==='left'?Math.min(cx,outside+contactRun):Math.max(cx,outside-contactRun);
+  const foundationPattern=L.type==='fill'?pat(L):R.type==='fill'?pat(R):'earth';
+  const path=key==='left'
+   ? `M${root} ${py} L${inside} ${yB} H${outside} L${contact} ${baseEarth} H${cx} V${py} Z`
+   : `M${cx} ${py} H${root} L${inside} ${yB} H${outside} L${contact} ${baseEarth} H${cx} Z`;
+  return `<path data-under-ditch="${key}" d="${path}" fill="url(#${foundationPattern})" stroke="none"/>`;
+ }
  function inlineSlopeLabel(kind,side,x1,y1,x2,y2,value,offset){
   // SVG words follow the local tangent, with an opaque backing for visibility.
   if(x2<x1){const t=x1;x1=x2;x2=t;const t2=y1;y1=y2;y2=t2;}
@@ -469,6 +485,8 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
     : `<rect data-ground="existing-foundation" x="${baseL}" y="${py}" width="${baseR-baseL}" height="${baseEarth-py}" fill="url(#earth)"/>`}
  <!-- Fill masses extend across the road foundation and down to the section datum. -->
  ${renderFilling('left',L,baseL)}${renderFilling('right',R,baseR)}
+ <!-- Base beneath grøft is underbygning/fylling, bounded by the inclined rock contact. -->
+ ${renderCutFoundation('left',L,baseL)}${renderCutFoundation('right',R,baseR)}
  <!-- Cut geology overlays fill where bedrock continues diagonally under the road. -->
  ${renderRockCut('left',L,baseL)}${renderRockCut('right',R,baseR)}
  <line x1="${bottomLeft}" y1="${baseEarth}" x2="${bottomRight}" y2="${baseEarth}" stroke="#7a8c99" stroke-width="1.4" opacity=".75"/>
