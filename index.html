@@ -286,6 +286,52 @@ function resetSlopeMaterials(){
  $('fillHeightBlock').style.display=slopeType.value==='fill'?'block':'none';
  update();
 }
+const ditchCondition=$('ditchCondition'), ditchDepth=$('ditchDepth'), ditchBottom=$('ditchBottom'), ditchInner=$('ditchInner'), ditchOuter=$('ditchOuter');
+function initDitchMaterials(){
+ ditchOuter.innerHTML=SLOPE_DATA.cut.map(x=>'<option value="'+x.id+'">'+x.name+' ('+x.v+':'+formatNo(x.h)+')</option>').join('');
+ ditchOuter.value='sand';
+}
+function ditchDraft(){
+ const depth=Number(ditchDepth.value),bottom=Number(ditchBottom.value);
+ const inner=Number(ditchInner.value);
+ const outer=SLOPE_DATA.cut.find(x=>x.id===ditchOuter.value)||SLOPE_DATA.cut[3];
+ const out=outer.h/outer.v;
+ if(ditchDepth.value.trim()===''||ditchBottom.value.trim()===''||!Number.isFinite(depth)||!Number.isFinite(bottom)||depth<0||bottom<0||depth>5000||bottom>5000)return null;
+ const depthM=depth/1000,bottomM=bottom/1000;
+ const innerM=depthM*inner,outerM=depthM*out,topM=bottomM+innerM+outerM;
+ const area=depthM*(bottomM+topM)/2;
+ return {depth,bottom,depthM,bottomM,inner,outer,out,innerM,outerM,topM,area};
+}
+function fmt2(x){return x.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function applyDitchCondition(){
+ if(ditchCondition.value==='water'){ditchDepth.value='350';ditchBottom.value='500';}
+ else {ditchDepth.value='200';ditchBottom.value='300';}
+ update();
+}
+function updateDitch(){
+ const d=ditchDraft();
+ if(!d){
+   $('ditchDepthOut').textContent='–';
+   $('ditchBottomOut').textContent='–';
+   $('ditchTopOut').textContent='–';
+   $('ditchAreaOut').textContent='–';
+   $('ditchAdvice').textContent='Ugyldige grøftemål. Kontroller verdiene.';
+   return;
+ }
+ const minDepth=ditchCondition.value==='water'?350:200;
+ const minBottom=ditchCondition.value==='water'?500:300;
+ const note=d.depth<minDepth?'Grøftedybden er mindre enn normens minimum for valgt dreneringsforhold. ':'';
+ const note2=d.bottom<minBottom?(ditchCondition.value==='water'?'Bunnbredden er under anbefalte 500 mm ved høy grunnvannstand / tilsig. ':'Bunnbredden er under normens minimum på 300 mm. '):'';
+ let info=note+note2;
+ if(!info)info='Valgte grøftemål tilfredsstiller de oppgitte minstekravene til dybde og bunnbredde for situasjonen. ';
+ if(soil.value==='7b')info+='For torvmark og myr bør grøfter i størst mulig grad unngås. ';
+ info+='Grøftegeometrien er skjematisk. Hydraulisk kapasitet, erosjon og stabilitet må vurderes separat.';
+ $('ditchAdvice').textContent=info;
+ $('ditchDepthOut').textContent=d.depth+' mm';
+ $('ditchBottomOut').textContent=d.bottom+' mm';
+ $('ditchTopOut').textContent=fmt2(d.topM)+' m';
+ $('ditchAreaOut').textContent=fmt2(d.area)+' m²';
+}
 const soil=$('soil'), bearing=$('bearing'), wear=$('wear'), reinforcement=$('reinforcement'), geosynthetic=$('geosynthetic');
 const ADVICE={
  '1':{mm:0,text:'Normalt ikke behov for eget forsterkningslag.'},
