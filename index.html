@@ -218,102 +218,45 @@ const soil=$('soil'), bearing=$('bearing'), wear=$('wear'), reinforcement=$('rei
 
 function esc(s){return String(s).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]));}
 
-function renderDiagram(baseMm, extraMm){
-  const wearMm=100;
-  const filterMm=30;
-  const totalDepth=Math.max(520, wearMm+baseMm+extraMm+filterMm+120);
-  const scale=180/totalDepth;
-  const topY=88;
-  const left=110, right=810, crestLeft=220, crestRight=700;
-  const roadTopL=`${crestLeft},${topY}`;
-  const roadTopC='460,'+(topY-9);
-  const roadTopR=`${crestRight},${topY}`;
-  const wearBottom=topY + wearMm*scale;
-  const baseBottom=wearBottom + baseMm*scale;
-  const reinBottom=baseBottom + extraMm*scale;
-  const filterBottom=reinBottom + Math.max(10, filterMm*scale);
-  const groundBottom=305;
-  const roadPolyTop=`M ${left} ${195} L ${crestLeft} ${topY} Q 460 ${topY-9} ${crestRight} ${topY} L ${right} ${195}`;
-  const wearPath=`${roadPolyTop} L ${right-25} ${wearBottom} Q 460 ${wearBottom-5} ${left+25} ${wearBottom} Z`;
-  const basePath=`M ${left+25} ${wearBottom} Q 460 ${wearBottom-5} ${right-25} ${wearBottom} L ${right-55} ${baseBottom} Q 460 ${baseBottom-8} ${left+55} ${baseBottom} Z`;
-  const reinPath = extraMm>0 ? `M ${left+55} ${baseBottom} Q 460 ${baseBottom-8} ${right-55} ${baseBottom} L ${right-78} ${reinBottom} Q 460 ${reinBottom-6} ${left+78} ${reinBottom} Z` : '';
-  const filterY = extraMm>0 ? reinBottom : baseBottom;
-  const filterPath=`M ${left+78} ${filterY} Q 460 ${filterY-6} ${right-78} ${filterY} L ${right-90} ${filterY+7} Q 460 ${filterY+2} ${left+90} ${filterY+7} Z`;
-  const underPath=`M ${left+70} ${filterY+7} Q 460 ${filterY+2} ${right-70} ${filterY+7} L ${right} ${groundBottom} L ${left} ${groundBottom} Z`;
-  const reinLabel= extraMm>0 ? `${extraMm} mm` : 'Ikke lagt inn';
-
-  return `
-  <svg viewBox="0 0 920 360" width="100%" role="img" aria-label="Prinsippsnitt av vegoverbygning">
-    <defs>
-      <pattern id="pWear" width="8" height="8" patternUnits="userSpaceOnUse">
-        <rect width="8" height="8" fill="#7a6759"></rect>
-        <circle cx="2" cy="2" r="0.8" fill="#b79d89"></circle>
-        <circle cx="6" cy="5" r="0.8" fill="#c8b4a2"></circle>
-      </pattern>
-      <pattern id="pBase" width="10" height="10" patternUnits="userSpaceOnUse">
-        <rect width="10" height="10" fill="#43484d"></rect>
-        <circle cx="2" cy="3" r="1" fill="#707780"></circle>
-        <circle cx="7" cy="6" r="1" fill="#656b74"></circle>
-      </pattern>
-      <pattern id="pRein" width="9" height="9" patternUnits="userSpaceOnUse">
-        <rect width="9" height="9" fill="#2d3035"></rect>
-        <path d="M0 9 L9 0 M-2 2 L2 -2 M7 11 L11 7" stroke="#4d535b" stroke-width="0.8"></path>
-      </pattern>
-      <pattern id="pUnder" width="18" height="18" patternUnits="userSpaceOnUse">
-        <rect width="18" height="18" fill="#4b3d36"></rect>
-        <circle cx="4" cy="4" r="2.4" fill="#2d2521"></circle>
-        <circle cx="13" cy="8" r="3" fill="#2d2521"></circle>
-        <circle cx="8" cy="14" r="2" fill="#5d5048"></circle>
-      </pattern>
-      <marker id="arr" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="#173044"></path>
-      </marker>
-    </defs>
-
-    <rect x="0" y="0" width="920" height="360" fill="transparent"></rect>
-
-    <path d="${underPath}" fill="url(#pUnder)" stroke="#2b2521" stroke-width="1.2"></path>
-    <path d="${filterPath}" fill="#17a2d8" stroke="#0e7ca7" stroke-width="1.1"></path>
-    ${extraMm>0 ? `<path d="${reinPath}" fill="url(#pRein)" stroke="#1f2226" stroke-width="1.2"></path>` : ''}
-    <path d="${basePath}" fill="url(#pBase)" stroke="#2d3237" stroke-width="1.2"></path>
-    <path d="${wearPath}" fill="url(#pWear)" stroke="#57493f" stroke-width="1.2"></path>
-
-    <path d="M ${left} 195 L ${crestLeft} ${topY} Q 460 ${topY-9} ${crestRight} ${topY} L ${right} 195" fill="none" stroke="#232425" stroke-width="6" stroke-linecap="round"></path>
-
-    <line x1="crestLeft" y1="48" x2="crestRight" y2="48" stroke="#173044" stroke-width="1.7" marker-start="url(#arr)" marker-end="url(#arr)"></line>
-    <line x1="crestLeft" y1="54" x2="crestLeft" y2="82" stroke="#173044" stroke-width="1.5"></line>
-    <line x1="crestRight" y1="54" x2="crestRight" y2="82" stroke="#173044" stroke-width="1.5"></line>
-    <text x="460" y="38" text-anchor="middle" font-size="14" font-weight="700" fill="#173044">Prinsipiell veibredde / kjørebane</text>
-
-    <text x="534" y="77" font-size="14" font-weight="700" fill="#173044">Tverrfall ca. 5 %</text>
-    <line x1="548" y1="80" x2="615" y2="87" stroke="#173044" stroke-width="1.2"></line>
-
-    <text x="377" y="134" font-size="13" font-weight="700" fill="#ffffff">Slitelag</text>
-    <text x="377" y="152" font-size="12" fill="#ffffff">${wearMm} mm</text>
-
-    <text x="405" y="195" font-size="13" font-weight="700" fill="#ffffff">Bærelag</text>
-    <text x="405" y="213" font-size="12" fill="#ffffff">${baseMm} mm</text>
-
-    ${extraMm>0 ? `<text x="520" y="238" font-size="13" font-weight="700" fill="#ffffff">Forsterkningslag</text>
-    <text x="520" y="256" font-size="12" fill="#ffffff">${extraMm} mm</text>` : `<text x="515" y="233" font-size="12" font-weight="700" fill="#173044">Forsterkningslag: ikke lagt inn</text>`}
-
-    <text x="680" y="${filterY+4}" font-size="13" font-weight="700" fill="#173044">Filterlag</text>
-    <text x="680" y="${filterY+20}" font-size="12" fill="#173044">Skillelag / fiberduk</text>
-
-    <text x="435" y="290" font-size="17" font-weight="800" fill="#173044">Underbygning</text>
-    <text x="420" y="309" font-size="12" fill="#173044">Planum / grunnforhold som overbygningen bygges på</text>
-
-    <line x1="165" y1="${topY}" x2="165" y2="${wearBottom}" stroke="#173044" stroke-width="1.2" marker-start="url(#arr)" marker-end="url(#arr)"></line>
-    <text x="130" y="${(topY+wearBottom)/2+4}" text-anchor="end" font-size="12" fill="#173044">${wearMm} mm</text>
-
-    <line x1="145" y1="${wearBottom}" x2="145" y2="${baseBottom}" stroke="#173044" stroke-width="1.2" marker-start="url(#arr)" marker-end="url(#arr)"></line>
-    <text x="110" y="${(wearBottom+baseBottom)/2+4}" text-anchor="end" font-size="12" fill="#173044">${baseMm} mm</text>
-
-    <line x1="125" y1="${baseBottom}" x2="125" y2="${Math.max(baseBottom+2,reinBottom)}" stroke="#173044" stroke-width="1.2" marker-start="url(#arr)" marker-end="url(#arr)"></line>
-    <text x="90" y="${(baseBottom+Math.max(baseBottom+2,reinBottom))/2+4}" text-anchor="end" font-size="12" fill="#173044">${extraMm>0?extraMm+' mm':'0 mm'}</text>
-
-    <text x="36" y="333" font-size="12" fill="#617685">Illustrasjonen er en stilisert prinsippskisse for presentasjon, ikke et detaljert normalprofil.</text>
-  </svg>`;
+function renderDiagram(baseMm,extraMm){
+ const wear=100;
+ const wh=24, bh=Math.max(45,Math.min(105,baseMm*0.18)), fh=extraMm>0?Math.max(28,Math.min(90,extraMm*.12)):0;
+ const y0=95,y1=y0+wh,y2=y1+bh,y3=y2+fh, y4=y3+7, ground=y4+80;
+ const edgeL=170,edgeR=720,span=110;
+ const p=(a,b,c,d)=>`M${a},${b} L${c},${b} L${d},${y3} L${a+25},${y3} Z`;
+ const wearShape=`M${edgeL},${y0} Q445,${y0-13} ${edgeR},${y0} L${edgeR+22},${y1} Q445,${y1-11} ${edgeL-22},${y1} Z`;
+ const baseShape=`M${edgeL-22},${y1} Q445,${y1-11} ${edgeR+22},${y1} L${edgeR+span},${y2} Q445,${y2-8} ${edgeL-span},${y2} Z`;
+ const reinShape=`M${edgeL-span},${y2} Q445,${y2-8} ${edgeR+span},${y2} L${edgeR+span+25},${y3} Q445,${y3-5} ${edgeL-span-25},${y3} Z`;
+ const geoShape=`M${edgeL-span-(extraMm>0?25:0)},${y3} Q445,${y3-5} ${edgeR+span+(extraMm>0?25:0)},${y3} L${edgeR+span+20},${y4} Q445,${y4-5} ${edgeL-span-20},${y4} Z`;
+ const underShape=`M${edgeL-span-20},${y4} Q445,${y4-5} ${edgeR+span+20},${y4} L860,${ground} L35,${ground} Z`;
+ const label=(y,text)=>`<rect x="384" y="${y-16}" rx="6" width="122" height="25" fill="#ffffff" opacity=".92"/><text x="445" y="${y+1}" text-anchor="middle" font-size="14" font-weight="700" fill="#152b3a">${text}</text>`;
+ const call=(y,x2,yy,text,color)=>`<circle cx="${x2}" cy="${y}" r="3.5" fill="${color}"/><path d="M${x2} ${y} L${x2+35} ${yy} L${x2+75} ${yy}" stroke="${color}" fill="none" stroke-width="1.6"/><text x="${x2+82}" y="${yy+4}" font-size="13" font-weight="700" fill="#203746">${text}</text>`;
+ return `<svg viewBox="0 0 1080 ${ground+56}" xmlns="http://www.w3.org/2000/svg" width="100%" role="img" aria-label="Tverrsnitt av overbygning med slitelag, bærelag, forsterkningslag og underbygning">
+ <defs>
+  <pattern id="wearGravel" width="12" height="10" patternUnits="userSpaceOnUse"><rect width="12" height="10" fill="#b48a6c"/><circle cx="2" cy="3" r="1.5" fill="#88644f"/><circle cx="9" cy="7" r="1" fill="#e1c5af"/></pattern>
+  <pattern id="baseGravel" width="16" height="13" patternUnits="userSpaceOnUse"><rect width="16" height="13" fill="#737d85"/><circle cx="3" cy="4" r="2.4" fill="#515960"/><circle cx="12" cy="9" r="2.6" fill="#4a545d"/></pattern>
+  <pattern id="reinGravel" width="22" height="19" patternUnits="userSpaceOnUse"><rect width="22" height="19" fill="#adb0a6"/><path d="M1 2l9 4-3 8-9-2z M13 3l8 2-4 10-7-4z" fill="#7c817a" stroke="#636e6b"/></pattern>
+  <pattern id="soilGravel" width="24" height="23" patternUnits="userSpaceOnUse"><rect width="24" height="23" fill="#a68d79"/><circle cx="4" cy="7" r="4" fill="#796457"/><circle cx="17" cy="17" r="5" fill="#766054"/><circle cx="20" cy="5" r="2" fill="#c0a995"/></pattern>
+ </defs>
+ <path d="${underShape}" fill="url(#soilGravel)" stroke="#66594d" stroke-width="2"/>
+ <path d="${geoShape}" fill="#13b9e2" stroke="#05789e" stroke-width="1.5"/>
+ ${extraMm>0?`<path d="${reinShape}" fill="url(#reinGravel)" stroke="#656b68" stroke-width="2"/>`:''}
+ <path d="${baseShape}" fill="url(#baseGravel)" stroke="#454c55" stroke-width="2"/>
+ <path d="${wearShape}" fill="url(#wearGravel)" stroke="#76533d" stroke-width="2.5"/>
+ <path d="M${edgeL},${y0} Q445,${y0-13} ${edgeR},${y0}" fill="none" stroke="#29343a" stroke-width="4"/>
+ <path d="M${edgeL},${y0-33} L${edgeR},${y0-33} M${edgeL},${y0-40} V${y0-26} M${edgeR},${y0-40} V${y0-26}" stroke="#173044" stroke-width="1.5"/>
+ <text x="445" y="${y0-42}" text-anchor="middle" font-size="16" font-weight="700" fill="#173044">Veibredde · prinsippsnitt</text>
+ ${label((y0+y1)/2,'Slitelag')}
+ ${label((y1+y2)/2,'Bærelag')}
+ ${extraMm>0?label((y2+y3)/2,'Forsterkningslag'):''}
+ <text x="445" y="${y4+44}" text-anchor="middle" font-size="20" font-weight="800" fill="#2d251f">Underbygning</text>
+ <text x="445" y="${y4+64}" text-anchor="middle" font-size="13" fill="#2d251f">Planum / grunnen under overbygningen</text>
+ ${call((y0+y1)/2,725,101,`Slitelag ${wear} mm`,'#805d44')}
+ ${call((y1+y2)/2,755,153,`Bærelag ${baseMm} mm`,'#49545d')}
+ ${extraMm>0?call((y2+y3)/2,800,209,`Forsterkningslag ${extraMm} mm`,'#656c61'):''}
+ ${call(y3+4,825,extraMm>0?245:210,'Filterlag / fiberduk','#057da3')}
+ <text x="32" y="${ground+31}" font-size="13" fill="#607584">Skjematisk, ikke i målestokk. Forsterkningslag legges kun inn når det er prosjektert.</text>
+ </svg>`;
 }
 
 function update(){
