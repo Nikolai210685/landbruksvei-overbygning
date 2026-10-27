@@ -460,10 +460,10 @@ slopeType.addEventListener('change',resetSlopeMaterials);
 slopeMaterial.addEventListener('change',update);
 fillHeight.addEventListener('input',update);
 ditchCondition.addEventListener('change',applyDitchCondition);
-ditchDepth.addEventListener('input',updateDitch);
-ditchBottom.addEventListener('input',updateDitch);
-ditchInner.addEventListener('change',updateDitch);
-ditchOuter.addEventListener('change',updateDitch);
+ditchDepth.addEventListener('input',update);
+ditchBottom.addEventListener('input',update);
+ditchInner.addEventListener('change',update);
+ditchOuter.addEventListener('change',update);
 $('print').addEventListener('click',()=>window.print());
 $('copy').addEventListener('click',async()=>{
   const group=soil.value, b=+bearing.value, s=+wear.value;
