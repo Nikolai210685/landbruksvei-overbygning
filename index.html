@@ -132,6 +132,21 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
     </select>
     <div class="muted">Valget endrer ikke automatisk lagtykkelsen. Geonett krever egen dokumentasjon og vurdering av eventuell reduksjon.</div>
 
+    <h3>2. Skråningshelning</h3>
+    <label for="slopeType">Skråningstype</label>
+    <select id="slopeType">
+      <option value="fill">Fylling – fyllingsskråning</option>
+      <option value="cut">Skjæring – skjæringsskråning</option>
+    </select>
+    <label for="slopeMaterial">Materiale i skråningen</label>
+    <select id="slopeMaterial"></select>
+    <div id="fillHeightBlock">
+      <label for="fillHeight">Fyllingshøyde (m, valgfritt)</label>
+      <input id="fillHeight" type="number" min="0" step="0.5" placeholder="F.eks. 2,5">
+      <div class="muted">Brukes til å varsle om særskilt utforming ved større fyllingshøyde. Påvirker ikke tykkelsesberegningen.</div>
+    </div>
+    <div class="note" id="slopeAdvice" aria-live="polite"></div>
+
     <div class="note">
       <strong>Tabellgrunnlag:</strong> Veiklasse 3 er aktivert og kontrollert mot tabell 3.2. Slitelag er satt til 100 mm i henhold til normen. Forsterkningslag prosjekteres ved behov.
     </div>
@@ -153,6 +168,14 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
         <span class="badge">Illustrasjon oppdateres automatisk</span>
       </div>
       <div id="diagram"></div>
+    </div>
+    <div class="svg-wrap">
+      <div class="svg-title">
+        <strong>Skråningshelning – fylling / skjæring</strong>
+        <span class="badge" id="slopeRatio">1:2</span>
+      </div>
+      <div id="slopeDiagram"></div>
+      <p class="muted">Separat prinsippskisse for fyllings-/skjæringsskråning. Overbygningens lagtykkelser endres ikke når skråningsmaterialet endres.</p>
     </div>
 
     <div class="legend">
@@ -211,7 +234,56 @@ const SOIL_TEXT={
  '7a':'Bløt silt og leire',
  '7b':'Torvmark'
 };
+const SLOPE_DATA={
+ fill:[
+  {id:'blasted',name:'Sprengt stein og fjell',v:1,h:1.25},
+  {id:'rockgravel',name:'Stein og grus',v:1,h:1.5},
+  {id:'sandmoraine',name:'Sand og morene',v:1,h:2},
+  {id:'fine',name:'Finsand, silt og leire',v:1,h:3}
+ ],
+ cut:[
+  {id:'solidrock',name:'Fast fjell',v:10,h:1},
+  {id:'looserock',name:'Løst fjell',v:2,h:1},
+  {id:'stone',name:'Stein',v:1,h:1.5},
+  {id:'sand',name:'Grus og sand',v:1,h:2},
+  {id:'moraine',name:'Morene',v:1,h:2.5},
+  {id:'fine',name:'Finsand, silt og leire',v:1,h:3}
+ ]
+};
 const $=id=>document.getElementById(id);
+const slopeType=$('slopeType'),slopeMaterial=$('slopeMaterial'),fillHeight=$('fillHeight');
+function formatNo(n){return String(n).replace('.',',');}
+function selectedSlope(){return SLOPE_DATA[slopeType.value].find(x=>x.id===slopeMaterial.value) || SLOPE_DATA[slopeType.value][0];}
+function resetSlopeMaterials(){
+ const list=SLOPE_DATA[slopeType.value],prev=slopeMaterial.value;
+ slopeMaterial.innerHTML=list.map(x=>'<option value="'+x.id+'">'+x.name+'</option>').join('');
+ if(list.some(x=>x.id===prev))slopeMaterial.value=prev;
+ else slopeMaterial.value=slopeType.value==='fill'?'sandmoraine':'moraine';
+ $('fillHeightBlock').style.display=slopeType.value==='fill'?'block':'none';
+ update();
+}
+function slopeSvg(type,entry){
+ const rise=entry.v,run=entry.h,ratio=run/rise;
+ const risePx=Math.min(118,220/ratio),runPx=risePx*ratio;
+ const topY=148-risePx,baseX=110+runPx;
+ const path=type==='fill'
+   ? 'M45 '+topY+' H110 L'+baseX+' 148 H45 Z'
+   : 'M95 148 L'+baseX+' '+topY+' H367 V148 Z';
+ const slash=type==='fill'
+   ? 'M110 '+topY+' L'+baseX+' 148'
+   : 'M95 148 L'+baseX+' '+topY;
+ const slopeX=type==='fill'?(110+baseX)/2:(95+baseX)/2;
+ const slopeY=(topY+148)/2;
+ const label=type==='fill'?'Fyllingsskråning':'Skjæringsskråning';
+ return '<svg viewBox="0 0 430 205" width="100%" role="img" aria-label="'+label+' med helning '+entry.v+':'+entry.h+'">'+
+ '<defs><pattern id="slopeDots" width="12" height="12" patternUnits="userSpaceOnUse"><rect width="12" height="12" fill="#ac947c"/><circle cx="4" cy="5" r="2.3" fill="#8a715d"/><circle cx="10" cy="9" r="1.7" fill="#d0b8a0"/></pattern></defs>'+
+ '<path d="'+path+'" fill="url(#slopeDots)" stroke="#665443" stroke-width="1.5"/>'+
+ '<path d="'+slash+'" fill="none" stroke="#1d5978" stroke-width="3"/>'+
+ '<line x1="28" y1="148" x2="392" y2="148" stroke="#8294a0" stroke-width="1.5"/>'+
+ '<text x="'+slopeX+'" y="'+(slopeY-13)+'" font-size="17" font-weight="750" text-anchor="middle" fill="#173044">'+entry.v+':'+formatNo(entry.h)+'</text>'+
+ '<text x="214" y="188" font-size="13" text-anchor="middle" fill="#526c7d">Illustrasjon – ikke i målestokk</text>'+
+ '</svg>';
+}
 const soil=$('soil'), bearing=$('bearing'), wear=$('wear'), reinforcement=$('reinforcement'), geosynthetic=$('geosynthetic');
 const ADVICE={
  '1':{mm:0,text:'Normalt ikke behov for eget forsterkningslag.'},
@@ -277,6 +349,23 @@ function update(){
   const a=ADVICE[group];
   const manual=a.mm!==null && extraMm!==a.mm;
   const synt=geosynthetic.value;
+  const slope=selectedSlope();
+  const slopeText=slope.v+':'+formatNo(slope.h);
+  const degrees=Math.atan(slope.v/slope.h)*180/Math.PI;
+  const slopePercent=100*slope.v/slope.h;
+  const highFill=slopeType.value==='fill' && fillHeight.value.trim()!=='' && Number(fillHeight.value)>5;
+  const fineFill=slopeType.value==='fill' && slope.id==='fine';
+  const highFines=slopeType.value==='fill' && slope.id==='sandmoraine';
+  const deepClay=(slope.id==='fine');
+  let slopeAdvice='Største skråningshelning etter Normaler for landbruksveier, pkt. 6.2.2: '+slopeText+
+    ' ('+formatNo(slopePercent.toFixed(1))+' % / '+formatNo(degrees.toFixed(1))+'°). '+
+    'Helning oppgis her som vertikal : horisontal.';
+  if(highFines)slopeAdvice+=' Ved høyt finstoffinnhold bør fyllingen gjøres slakere.';
+  if(deepClay)slopeAdvice+=' Ved dyp leire (>2 m) må det utvises særskilt aktsomhet.';
+  if(highFill)slopeAdvice+=' Ved høydeforskjell over 5 m må fyllingsskråningen utformes gradvis slakere til 1:4; vist standardhelning kan ikke brukes uendret hele veien.';
+  $('slopeAdvice').textContent=slopeAdvice;
+  $('slopeRatio').textContent=slopeText;
+  $('slopeDiagram').innerHTML=slopeSvg(slopeType.value,slope);
   $('reinforcementAdvice').textContent='Veiledende vurdering: '+a.text+(manual?' Prosjektert verdi avviker fra standardforslaget.':'')+(group==='7b'?' Angi en prosjektert tykkelse og kontroller særskilt.':'');
   if(group==='7b'&&!reinforcement.value.trim()) $('reinforcementAdvice').textContent+=' Sum er foreløpig og inkluderer ikke forsterkningslag.';
 
@@ -292,7 +381,7 @@ function update(){
   $('summary1').textContent=`Veiklasse 3 med bæreevnegruppe ${group} – ${SOIL_TEXT[group]}.`;
   $('summary2').textContent=`Valgt materialkvalitet: bærelag b-${'ABCD'[b]} og slitelag s-${'AB'[s]}.`;
   $('summary3').textContent=`Beregnet bærelagstykkelse fra tabell 3.2: ${baseMm} mm. Slitelag: 100 mm.`;
-  $('summary4').textContent=`Sum valgte lag: ${totalMm} mm. Forsterkningslag: ${extraMm} mm. Geosyntet: ${geosynthetic.options[geosynthetic.selectedIndex].text}.`;
+  $('summary4').textContent=`Sum valgte lag: ${totalMm} mm. Forsterkningslag: ${extraMm} mm. Geosyntet: ${geosynthetic.options[geosynthetic.selectedIndex].text}. Skråningshelning (${slopeType.value==='fill'?'fylling':'skjæring'}, ${slope.name}): ${slopeText}.`;
 
   $('warningBox').innerHTML = '<strong>Faglig kontroll:</strong> Anbefaling om forsterkningslag er veiledende, ikke automatisk dimensjonering. Kontroller normtekst og stedlige grunnforhold før bruk i prosjektering. Fiberduk/geonett inngår ikke som en beregnet reduksjon av tykkelsen.';
 }
@@ -305,6 +394,9 @@ function update(){
   geosynthetic.addEventListener(evt,update);
 });
 soil.addEventListener('change',applyAdvice);
+slopeType.addEventListener('change',resetSlopeMaterials);
+slopeMaterial.addEventListener('change',update);
+fillHeight.addEventListener('input',update);
 $('print').addEventListener('click',()=>window.print());
 $('copy').addEventListener('click',async()=>{
   const group=soil.value, b=+bearing.value, s=+wear.value;
@@ -320,8 +412,12 @@ $('copy').addEventListener('click',async()=>{
     `Slitelag: s-${'AB'[s]}, 100 mm\n`+
     `Forsterkningslag (valgt): ${extraMm} mm\n`+
     `Geosyntet: ${geosynthetic.options[geosynthetic.selectedIndex].text}\n`+
+    `Skråningstype: ${slopeType.value==='fill'?'Fylling':'Skjæring'}\n`+
+    `Skråningsmateriale: ${selectedSlope().name}\n`+
+    `Største skråningshelning: ${selectedSlope().v}:${formatNo(selectedSlope().h)}\n`+
+    `Fyllingshøyde (oppgitt): ${fillHeight.value.trim()||'Ikke oppgitt'} m\n`+
     `Sum overbygning: ${totalMm} mm\n`+
-    `Kilde: Normaler for landbruksveier, versjon 2, mars 2026, tabell 3.2.\n`+
+    `Kilde: Normaler for landbruksveier, versjon 2, mars 2026, tabell 3.2 og pkt. 6.2.2.\n`+
     `Forutsetter faglig kontroll.`;
   try{
     await navigator.clipboard.writeText(report);
@@ -331,6 +427,7 @@ $('copy').addEventListener('click',async()=>{
     alert('Kunne ikke kopiere til utklippstavlen. Bruk Skriv ut / lagre som PDF.');
   }
 });
+resetSlopeMaterials();
 applyAdvice();
 </script>
 </body>
