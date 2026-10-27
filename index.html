@@ -70,6 +70,17 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
 .side-card label{margin:10px 0 5px}.side-card select,.side-card input{width:100%;min-width:0;padding:9px;font-size:13px}
 @media(max-width:560px){.side-grid{grid-template-columns:1fr}}.geo-reduction-toggle{display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;margin-top:14px}
 .geo-reduction-toggle input{width:18px;height:18px;flex:0 0 18px;margin:0;accent-color:#1f6a8e}
+.kartkilder{border:1px solid #dbe7ee;border-radius:13px;background:#f7fafc;padding:12px 13px;margin:15px 0 18px}
+.kartkilder h3{font-size:14px;margin:0 0 5px;color:var(--accent2)}
+.kartkilder .muted{margin:0 0 9px}
+.kartkilder-list{display:grid;gap:7px}
+.kartkilde-link{display:flex;justify-content:space-between;align-items:center;gap:12px;color:var(--accent2);text-decoration:none;background:white;border:1px solid #d7e5ed;border-radius:10px;padding:9px 11px;transition:background .15s,border-color .15s}
+.kartkilde-link:hover,.kartkilde-link:focus-visible{background:#eaf4fa;border-color:#93bcd1;outline-offset:2px}
+.kartkilde-link strong,.kartkilde-link small{display:block}
+.kartkilde-link strong{font-size:13px}
+.kartkilde-link small{color:var(--muted);font-size:11px;line-height:1.35;margin-top:1px}
+.kartkilde-link > span:last-child{font-size:19px;flex:none}
+.kartkilder p.kartkilder-merknad{margin:10px 0 0}
 </style>
 </head>
 <body>
@@ -110,6 +121,23 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
       <option value="7a">7a – Bløt silt og leire</option>
       <option value="7b">7b – Torvmark</option>
     </select>
+
+    <div class="kartkilder" aria-labelledby="kartkilder-title">
+      <h3 id="kartkilder-title">Kartgrunnlag for vurdering av undergrunn</h3>
+      <p class="muted">Åpne offentlige kart og grunnundersøkelser i ny fane før du velger bæreevnegruppe.</p>
+      <div class="kartkilder-list">
+        <a class="kartkilde-link" href="https://geo.ngu.no/kart/losmasse_mobil/" target="_blank" rel="noopener noreferrer">
+          <span><strong>NGU – Løsmassekart</strong><small>Løsmassetyper og geologiske avsetninger</small></span><span aria-hidden="true">↗</span>
+        </a>
+        <a class="kartkilde-link" href="https://www.ngu.no/geologisk-kartlegging/nadag-database-og-kartinnsyn" target="_blank" rel="noopener noreferrer">
+          <span><strong>NGU – NADAG</strong><small>Geotekniske grunnundersøkelser og borepunkter</small></span><span aria-hidden="true">↗</span>
+        </a>
+        <a class="kartkilde-link" href="https://kilden.nibio.no/" target="_blank" rel="noopener noreferrer">
+          <span><strong>NIBIO – Kilden</strong><small>Arealressurser, AR5 og grunnforhold</small></span><span aria-hidden="true">↗</span>
+        </a>
+      </div>
+      <p class="muted kartkilder-merknad">Kartdata gir en foreløpig vurdering. Bæreevnegruppe må kontrolleres mot faktiske grunnforhold.</p>
+    </div>
 
     <label for="bearing">Bærelagskvalitet</label>
     <select id="bearing">
