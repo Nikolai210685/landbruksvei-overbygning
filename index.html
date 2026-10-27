@@ -68,7 +68,9 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
 .side-card{background:#f6fafc;border:1px solid #d8e6ee;border-radius:14px;padding:14px;min-width:0}
 .side-title{font-size:16px;font-weight:800;border-bottom:1px solid #dbe8ee;padding-bottom:8px;color:#144c69}
 .side-card label{margin:10px 0 5px}.side-card select,.side-card input{width:100%;min-width:0;padding:9px;font-size:13px}
-@media(max-width:560px){.side-grid{grid-template-columns:1fr}}</style>
+@media(max-width:560px){.side-grid{grid-template-columns:1fr}}.geo-reduction-toggle{display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;margin-top:14px}
+.geo-reduction-toggle input{width:18px;height:18px;flex:0 0 18px;margin:0;accent-color:#1f6a8e}
+</style>
 </head>
 <body>
 <header>
@@ -123,9 +125,9 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
       <option value="1">s-B – Knust løsmasse</option>
     </select>
 
-    <label for="reinforcement">Forsterkningslag – prosjektert tykkelse (mm)</label>
+    <label for="reinforcement">Forsterkningslag – dimensjonert tykkelse uten geonett (mm)</label>
     <input id="reinforcement" type="number" min="0" step="10" value="0">
-    <div class="muted">Foreslått verdi fylles inn når bæreevnegruppe endres. Kan overstyres av prosjekterende.</div>
+    <div class="muted">Opprinnelig lagtykkelse før eventuell geonett-reduksjon. Du kan endre verdien manuelt.</div>
     <div class="note" id="reinforcementAdvice" aria-live="polite"></div>
     <label for="geosynthetic">Filterlag / geosyntet</label>
     <select id="geosynthetic">
@@ -134,7 +136,9 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
       <option value="geonett">Geonett – armering (må dimensjoneres)</option>
       <option value="both">Fiberduk og geonett</option>
     </select>
-    <div class="muted">Valget endrer ikke automatisk lagtykkelsen. Geonett krever egen dokumentasjon og vurdering av eventuell reduksjon.</div>
+    <label class="geo-reduction-toggle" for="useGeonettReduction"><input id="useGeonettReduction" type="checkbox" checked> Bruk tabellreduksjon når geonett er valgt</label>
+    <div class="note" id="reductionAdvice" aria-live="polite">Ingen reduksjon uten geonett.</div>
+    <div class="muted">Tabell 3.2, veiklasse 3: kun forsterkningslag kan reduseres. Bærelag og slitelag endres ikke. Geonett bør kombineres med fiberduk.</div>
 
         <h3>2. Terreng på hver side</h3>
     <div class="side-grid">
@@ -322,6 +326,26 @@ const ADVICE={
  '7a':{mm:600,text:'Veiledende forsterkningslag: 600 mm. Kontroller bæreevne og anleggsgjennomføring.'},
  '7b':{mm:null,text:'Torvmark/myr krever særskilt vurdering og løsning med geosynteter. Ingen automatisk tykkelse.'}
 };
+// Reduksjonstabellen på side 32 i Normaler for landbruksveier,
+// versjon 2 – mars 2026. Intervaller er angitt i millimeter.
+function tableReduction(mm){
+ if(mm>=250&&mm<=300)return 50;
+ if(mm>=350&&mm<=450)return 100;
+ if(mm>=500&&mm<=700)return 150;
+ if(mm>=750&&mm<=1000)return 200;
+ if(mm>1000)return 250;
+ return 0; // Utenfor tabellens oppgitte tykkelsesintervaller.
+}
+const useGeonettReduction=$('useGeonettReduction');
+function reinforcementDesign(){
+ const raw=Number(reinforcement.value);
+ const original=reinforcement.value.trim()!==''&&Number.isFinite(raw)&&raw>=0?raw:0;
+ const synt=geosynthetic.value;
+ const geonett=synt==='geonett'||synt==='both';
+ const useTable=geonett&&useGeonettReduction.checked;
+ const reduction=useTable?tableReduction(original):0;
+ return {original,reduction,actual:Math.max(0,original-reduction),geonett,useTable};
+}
 function applyAdvice(){
  const a=ADVICE[soil.value];
  reinforcement.value=a.mm===null?'':String(a.mm);
@@ -517,7 +541,7 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
 }
 function update(){
  const group=soil.value,b=Number(bearing.value),w=Number(wear.value),base=TABLE[group][b][w]*10;
- const raw=Number(reinforcement.value),extra=(reinforcement.value.trim()!==''&&Number.isFinite(raw)&&raw>=0)?raw:0;
+ const reinforcementCalc=reinforcementDesign(),extra=reinforcementCalc.actual;
  const L=sideInfo('left'),R=sideInfo('right'),synt=geosynthetic.value,a=ADVICE[group],total=100+base+extra;
  const desc=x=>(x.type==='cut'?'Skjæring':'Fylling')+' '+x.material.name+' ('+x.material.v+':'+formatNo(x.material.h)+')';
  $('leftHelp').textContent=desc(L)+(L.type==='cut'?' · med grøft':' · uten grøft');
@@ -529,7 +553,20 @@ function update(){
  $('slopeAdvice').textContent='Venstre: '+desc(L)+'. Høyre: '+desc(R)+'. '+cautions.join(' ');
  $('slopeSummary').textContent='Venstre: '+desc(L)+(L.type==='cut'?' med grøft':' uten grøft')+'. Høyre: '+desc(R)+(R.type==='cut'?' med grøft':' uten grøft')+'.';
  updateDitch();
- $('reinforcementAdvice').textContent='Veiledende vurdering: '+a.text+(a.mm!==null&&extra!==a.mm?' Prosjektert verdi avviker fra forslaget.':'');
+ $('reinforcementAdvice').textContent='Veiledende vurdering: '+a.text+(a.mm!==null&&reinforcementCalc.original!==a.mm?' Dimensjonert tykkelse avviker fra forslaget.':'');
+ let reductionNote='';
+ if(!reinforcementCalc.geonett){
+   reductionNote=synt==='fiberduk'?'Fiberduk alene gir ingen automatisk reduksjon av forsterkningslag.':'Velg geonett for å beregne mulig reduksjon av forsterkningslag.';
+ }else if(!useGeonettReduction.checked){
+   reductionNote='Tabellreduksjon er slått av. Forsterkningslag beholdes på '+reinforcementCalc.original+' mm.';
+ }else if(reinforcementCalc.reduction>0){
+   reductionNote='Med geonett: '+reinforcementCalc.original+' mm − '+reinforcementCalc.reduction+' mm = '+reinforcementCalc.actual+' mm forsterkningslag (tabell 3.2). Bærelaget er uendret.';
+ }else{
+   reductionNote='Ingen automatisk reduksjon: '+reinforcementCalc.original+' mm ligger utenfor tabellens intervaller (250–300, 350–450, 500–700, 750–1000, >1000 mm).';
+ }
+ if(synt==='geonett')reductionNote+=' Geonett bør kombineres med fiberduk for separasjon.';
+ if(group==='7b')reductionNote+=' For torvmark kreves særskilt prosjektering.';
+ $('reductionAdvice').textContent=reductionNote;
  $('wearout').textContent='100 mm';$('baseout').textContent=base+' mm';
  $('reinforceout').textContent=extra+' mm';$('totalout').textContent=total+' mm';
  $('diagram').innerHTML=renderDiagram(base,extra,ditchDraft(),synt);
@@ -537,20 +574,22 @@ function update(){
  $('diagram').querySelector('svg')?.setAttribute('aria-description',desc(L)+'. '+desc(R));
  $('summary1').textContent='Veiklasse 3. Bæreevnegruppe '+group+' – '+SOIL_TEXT[group]+'.';
  $('summary2').textContent='Bærelag b-'+'ABCD'[b]+' og slitelag s-'+'AB'[w]+'.';
- $('summary3').textContent='Bærelag '+base+' mm, slitelag 100 mm. Sum '+total+' mm.';
- $('summary4').textContent='Venstre: '+desc(L)+'. Høyre: '+desc(R)+'.';
+ $('summary3').textContent='Bærelag '+base+' mm, slitelag 100 mm, forsterkningslag '+reinforcementCalc.original+' − '+reinforcementCalc.reduction+' = '+extra+' mm. Sum '+total+' mm.';
+ $('summary4').textContent='Venstre: '+desc(L)+'. Høyre: '+desc(R)+'. Geosyntet: '+geosynthetic.options[geosynthetic.selectedIndex].text+'.';
  $('warningBox').innerHTML='<strong>Faglig kontroll:</strong> Tabellhelningene er ikke stabilitetsdokumentasjon. Kontroller erosjon, vannmengde og lokale grunnforhold. Skissen er ikke målfast.';
 }
 ['change','input'].forEach(e=>{soil.addEventListener(e,update);bearing.addEventListener(e,update);wear.addEventListener(e,update);reinforcement.addEventListener(e,update);geosynthetic.addEventListener(e,update);});
 for(const key of ['left','right']){$(key+'Type').addEventListener('change',()=>populateSide(key));$(key+'Material').addEventListener('change',update);}
 ditchCondition.addEventListener('change',applyDitchCondition);ditchDepth.addEventListener('input',update);ditchBottom.addEventListener('input',update);ditchInner.addEventListener('change',update);
+useGeonettReduction.addEventListener('change',update);
 soil.addEventListener('change',applyAdvice);
 $('print').addEventListener('click',()=>window.print());
 $('copy').addEventListener('click',async()=>{
  const L=sideInfo('left'),R=sideInfo('right'),d=ditchDraft();
- const base=TABLE[soil.value][Number(bearing.value)][Number(wear.value)]*10,extra=Math.max(0,Number(reinforcement.value)||0);
+ const base=TABLE[soil.value][Number(bearing.value)][Number(wear.value)]*10;
+ const reinforcementCalc=reinforcementDesign(),extra=reinforcementCalc.actual;
  const describe=(label,x)=>label+': '+(x.type==='cut'?'Skjæring':'Fylling')+', '+x.material.name+' ('+x.material.v+':'+formatNo(x.material.h)+')'+(x.type==='cut'?', med grøft':', uten grøft');
- const items=['Landbruksvei Overbygningskalkulator','Utviklet av Nikolai Medvedev','Veiklasse 3, bæreevnegruppe '+soil.value,'Slitelag 100 mm','Bærelag '+base+' mm','Forsterkningslag '+extra+' mm','Sum '+(100+base+extra)+' mm',describe('Venstre',L),describe('Høyre',R)];
+ const items=['Landbruksvei Overbygningskalkulator','Utviklet av Nikolai Medvedev','Veiklasse 3, bæreevnegruppe '+soil.value,'Slitelag 100 mm','Bærelag '+base+' mm','Forsterkningslag uten geonett '+reinforcementCalc.original+' mm','Reduksjon med geonett '+reinforcementCalc.reduction+' mm','Prosjektert forsterkningslag '+extra+' mm','Geosyntet '+geosynthetic.options[geosynthetic.selectedIndex].text,'Sum '+(100+base+extra)+' mm',describe('Venstre',L),describe('Høyre',R)];
  if(d)items.push('Grøfter i skjæring: dybde '+d.depth+' mm, bunnbredde '+d.bottom+' mm');
  items.push('Kilde: Normaler for landbruksveier, versjon 2 mars 2026. Forutsetter faglig kontroll.');
  try{await navigator.clipboard.writeText(items.join('\n'));$('copy').textContent='Kopiert!';setTimeout(()=>$('copy').textContent='Kopier beregning',1800);}
