@@ -401,8 +401,14 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  <pattern id="moraine" width="34" height="28" patternUnits="userSpaceOnUse"><rect width="34" height="28" fill="#b39c85"/><circle cx="6" cy="7" r="3" fill="#7f736a"/><path d="M17 5l8 1 3 8-12 3z" fill="#877b6e"/><circle cx="23" cy="24" r="2.4" fill="#dccbb5"/></pattern>
  <pattern id="sediment" width="34" height="26" patternUnits="userSpaceOnUse"><rect width="34" height="26" fill="#b9aa9c"/><path d="M0 8H34 M0 15H34 M0 22H34" stroke="#84766c" stroke-width="1"/></pattern>
  </defs>
- <!-- No full-width pale background: only actual geological bodies are textured. -->
- <rect x="${baseL}" y="${py}" width="${baseR-baseL}" height="${baseEarth-py}" fill="url(#earth)" stroke="#705b4c" stroke-width="1.5"/>
+ <!-- No global soil overlay. Where a fill is specified, use its actual material
+      throughout the road foundation until rock geology overlaps it. -->
+ ${L.type==='fill'&&R.type==='fill'
+  ? `<rect data-ground="left-foundation" x="${baseL}" y="${py}" width="${cx-baseL}" height="${baseEarth-py}" fill="url(#${pat(L)})"/>
+  <rect data-ground="right-foundation" x="${cx}" y="${py}" width="${baseR-cx}" height="${baseEarth-py}" fill="url(#${pat(R)})"/>`
+  : L.type==='fill'||R.type==='fill'
+    ? `<rect data-ground="fill-foundation" x="${baseL}" y="${py}" width="${baseR-baseL}" height="${baseEarth-py}" fill="url(#${pat(L.type==='fill'?L:R)})"/>`
+    : `<rect data-ground="existing-foundation" x="${baseL}" y="${py}" width="${baseR-baseL}" height="${baseEarth-py}" fill="url(#earth)"/>`}
  <!-- Fill masses extend across the road foundation and down to the section datum. -->
  ${renderFilling('left',L,baseL)}${renderFilling('right',R,baseR)}
  <!-- Cut geology overlays fill where bedrock continues diagonally under the road. -->
