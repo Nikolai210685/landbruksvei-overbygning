@@ -184,11 +184,11 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
 
     <div class="svg-wrap">
       <div class="svg-title">
-        <strong>Prinsippsnitt – skjæring og fylling på hver side</strong>
+        <strong>Prinsippsnitt – veiklasse 3, overbygning og sideterreng</strong>
         <span class="badge">Illustrasjon oppdateres automatisk</span>
       </div>
       <div id="diagram"></div>
-      <p class="muted">Overbygningens sidekant fortsetter med samme helning som grøft mot veg (skjæring) eller fyllingsskråningen (fylling). Helningene og valgt geosyntet merkes i figuren.</p>
+      <p class="muted">Veibredde 4,00 m: kjørebane 3,50 m + skulder 0,25 m på hver side. Tosidig tverrfall 5 % ved kurveradius over 60 m. Breddeutvidelse kreves i enkelte kurver og på høye fyllinger.</p>
       <div class="results" id="ditchMetrics" style="grid-template-columns:repeat(2,minmax(0,1fr))">
         <div class="metric"><small>Grøftedybde under planum</small><strong id="ditchDepthOut">200 mm</strong></div>
         <div class="metric"><small>Bunnbredde</small><strong id="ditchBottomOut">300 mm</strong></div>
@@ -356,10 +356,12 @@ function esc(s){return String(s).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">
 
 function renderDiagram(baseMm,extraMm,ditch,synt){
  const L=sideInfo('left'),R=sideInfo('right'),cx=750,half=210,py=310,baseEarth=510;
+ const roadWidthM=4,carriageM=3.5,shoulderM=.25,crossfall=.05;
+ const crown=half*crossfall,carriageHalf=half*carriageM/roadWidthM;
  const total=100+baseMm+extraMm,m=Number(ditchInner.value),dep=ditch?ditch.depth:0,bot=ditch?ditch.bottom:0;
  const mLeft=L.type==='fill'?L.ratio:m,mRight=R.type==='fill'?R.ratio:m;
  const run=s=>s.height*1000*s.ratio+(s.type==='cut'?dep*(m+s.ratio)+bot:0);
- const scale=Math.min(.19,145/Math.max(total,1),
+ const scale=Math.min(.105,145/Math.max(total,1),
   155/Math.max(L.type==='cut'?L.height*1000+dep:0,R.type==='cut'?R.height*1000+dep:0,1),
   170/Math.max(L.type==='fill'?L.height*1000:0,R.type==='fill'?R.height*1000:0,1),
   440/Math.max(total*mLeft+run(L),total*mRight+run(R),1));
@@ -371,7 +373,7 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  const rightFillToe=baseR+R.height*1000*scale*R.ratio;
  const bottomLeft=L.type==='fill'?leftFillToe:20;
  const bottomRight=R.type==='fill'?rightFillToe:1480;
- const layer=(a,b)=>`M${xLeft(a)} ${a} H${xRight(a)} L${xRight(b)} ${b} H${xLeft(b)} Z`;
+ const layer=(a,b)=>`M${xLeft(a)} ${a} L${cx} ${a-crown} L${xRight(a)} ${a} L${xRight(b)} ${b} L${cx} ${b-crown} L${xLeft(b)} ${b} Z`;
  const pat=s=>({solidrock:'rockSolid',looserock:'rockLoose',stone:'gravel',sand:'sand',moraine:'moraine',fine:'sediment',blasted:'rockLoose',rockgravel:'gravel',sandmoraine:'moraine'})[s.material.id]||'moraine';
   // Fill masses are carried down to the bottom of the section and continue beneath
  // their half of the road foundation instead of ending as hollow slope triangles.
@@ -492,7 +494,7 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
   <text x="${x+16}" y="55" font-size="19" font-weight="800" fill="#1c394d">${key==='left'?'VENSTRE':'HØYRE'} · ${s.type==='cut'?'SKJÆRING':'FYLLING'}</text>
   <text x="${x+16}" y="83" font-size="15" font-weight="650" fill="#456175">${s.material.name} · ${s.material.v}:${formatNo(s.material.h)}</text>`;
  }
- return `<svg viewBox="0 0 1500 590" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" data-road-slope-left="${mLeft}" data-road-slope-right="${mRight}" aria-label="Tverrprofil med skjæring eller fylling per side">
+ return `<svg viewBox="0 0 1500 590" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" data-road-slope-left="${mLeft}" data-road-slope-right="${mRight}" data-road-width="4.00" data-carriageway="3.50" data-shoulder="0.25" data-crossfall="5" aria-label="Veiklasse 3, kjørebane 3,50 meter, skulder 0,25 meter på begge sider, tosidig tverrfall 5 prosent">
  <defs>
  <pattern id="wear" width="12" height="10" patternUnits="userSpaceOnUse"><rect width="12" height="10" fill="#b99c83"/><circle cx="4" cy="3" r="1.5" fill="#806953"/></pattern>
  <pattern id="base" width="14" height="12" patternUnits="userSpaceOnUse"><rect width="14" height="12" fill="#737e88"/><circle cx="3" cy="3" r="2" fill="#4b5b66"/><circle cx="11" cy="8" r="2" fill="#4b5b66"/></pattern>
@@ -524,13 +526,23 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  ${extraMm>0?`<path data-layer="forsterkningslag" d="${layer(yBase,py)}" fill="url(#rein)" stroke="#4c6556" stroke-width="2.3"/>`:''}
  <path d="${layer(yWear,yBase)}" fill="url(#base)" stroke="#4d5960" stroke-width="1.5"/>
  <path d="${layer(yTop,yWear)}" fill="url(#wear)" stroke="#816a58" stroke-width="1.5"/>
- ${synt==='fiberduk'||synt==='both'?`<path d="M${baseL} ${py-2} H${baseR}" stroke="#13aad5" stroke-width="3"/>`:''}
- ${synt==='geonett'||synt==='both'?`<path d="M${baseL} ${py-6} H${baseR}" stroke="#986fc0" stroke-width="3" stroke-dasharray="9 5"/>`:''}
- <path d="M${xTopL} ${yTop} H${xTopR} L${baseR} ${py} H${baseL} Z" stroke="#243b4c" stroke-width="2.6" fill="none"/>
- <text x="${cx}" y="135" text-anchor="middle" font-size="17" font-weight="750" fill="#173044">Overbygning · prinsippsnitt</text>
- <text x="${cx}" y="${(yTop+yWear)/2+4}" text-anchor="middle" font-size="13" font-weight="700" fill="#31291f">Slitelag 100 mm</text>
- <text x="${cx}" y="${(yWear+yBase)/2+6}" text-anchor="middle" font-size="17" font-weight="750" fill="#fff">Bærelag ${baseMm} mm</text>
- ${extraMm>0?`<text x="${cx}" y="${(yBase+py)/2+5}" text-anchor="middle" font-size="${(py-yBase)<24?11:14}" font-weight="800" fill="#213529">Forsterkningslag ${extraMm} mm</text>`:''}
+ ${synt==='fiberduk'||synt==='both'?`<path d="M${baseL} ${py-2} L${cx} ${py-crown-2} L${baseR} ${py-2}" stroke="#13aad5" stroke-width="3"/>`:''}
+ ${synt==='geonett'||synt==='both'?`<path d="M${baseL} ${py-6} L${cx} ${py-crown-6} L${baseR} ${py-6}" stroke="#986fc0" stroke-width="3" stroke-dasharray="9 5"/>`:''}
+ <path data-road-outline="true" d="M${xTopL} ${yTop} L${cx} ${yTop-crown} L${xTopR} ${yTop} L${baseR} ${py} L${cx} ${py-crown} L${baseL} ${py} Z" stroke="#243b4c" stroke-width="2.6" fill="none"/>
+ <text x="${cx}" y="29" text-anchor="middle" font-size="17" font-weight="800" fill="#173044">Veiklasse 3 · prinsippsnitt</text>
+ <g data-width-annotation="true" fill="none" stroke="#547183" stroke-width="1.7">
+  <path d="M${xTopL} 65 H${xTopR} M${xTopL} 56 V73 M${xTopR} 56 V73"/>
+  <path d="M${cx-carriageHalf} 105 H${cx+carriageHalf} M${cx-carriageHalf} 97 V113 M${cx+carriageHalf} 97 V113"/>
+  <path d="M${xTopL} 130 H${cx-carriageHalf} M${cx+carriageHalf} 130 H${xTopR} M${xTopL} 124 V136 M${cx-carriageHalf} 124 V136 M${cx+carriageHalf} 124 V136 M${xTopR} 124 V136"/>
+ </g>
+ <text x="${cx}" y="55" text-anchor="middle" font-size="16" font-weight="800" fill="#183d52">Veibredde 4,00 m</text>
+ <text x="${cx}" y="95" text-anchor="middle" font-size="15" font-weight="750" fill="#183d52">Kjørebane 3,50 m</text>
+ <text x="${xTopL-17}" y="135" text-anchor="end" font-size="14" font-weight="750" fill="#1b526e">Skulder 0,25 m</text>
+ <text x="${xTopR+17}" y="135" text-anchor="start" font-size="14" font-weight="750" fill="#1b526e">Skulder 0,25 m</text>
+ <text x="${cx}" y="158" text-anchor="middle" font-size="15" font-weight="800" fill="#116b90">Tosidig tverrfall 5 %</text>
+ <text x="${cx}" y="${(yTop+yWear)/2-crown+4}" text-anchor="middle" font-size="13" font-weight="700" fill="#31291f">Slitelag 100 mm</text>
+ <text x="${cx}" y="${(yWear+yBase)/2-crown+6}" text-anchor="middle" font-size="17" font-weight="750" fill="#fff">Bærelag ${baseMm} mm</text>
+ ${extraMm>0?`<text x="${cx}" y="${(yBase+py)/2-crown+5}" text-anchor="middle" font-size="${(py-yBase)<24?11:14}" font-weight="800" fill="#213529">Forsterkningslag ${extraMm} mm</text>`:''}
  <text x="${cx}" y="${py+27}" text-anchor="middle" font-size="14" font-weight="700" fill="#284558">Planum</text>
  <text x="${cx}" y="${py+96}" text-anchor="middle" font-size="22" font-weight="800" fill="#433327">Underbygning</text>
  ${annotations()}
