@@ -222,8 +222,11 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
 
     <div class="actions">
       <button class="primary" id="print">Skriv ut / lagre som PDF</button>
+      <button class="secondary" id="saveSvg">Last ned SVG</button>
+      <button class="secondary" id="saveDxf">Eksporter DXF</button>
       <button class="secondary" id="copy">Kopier beregning</button>
     </div>
+    <p class="muted" id="cadExportInfo">DXF inneholder redigerbare konturer, linjer og tekster fordelt på CAD-lag. SVG bevarer de visuelle materialteksturene. Begge er <strong>prinsippskisser, ikke målfast prosjekteringsgrunnlag</strong>.</p>
   </section>
 </main>
 
@@ -595,6 +598,185 @@ for(const key of ['left','right']){$(key+'Type').addEventListener('change',()=>p
 ditchCondition.addEventListener('change',applyDitchCondition);ditchDepth.addEventListener('input',update);ditchBottom.addEventListener('input',update);ditchInner.addEventListener('change',update);
 useGeonettReduction.addEventListener('change',update);
 soil.addEventListener('change',applyAdvice);
+// Browser-only SVG and CAD exchange. SVG coordinates are illustrative, not real survey units.
+function svgForDownload(){
+ const svg=$('diagram').querySelector('svg');
+ if(!svg)throw new Error('Ingen prinsippskisse er tilgjengelig.');
+ const clone=svg.cloneNode(true);
+ clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
+ clone.setAttribute('xmlns:xlink','http://www.w3.org/1999/xlink');
+ clone.setAttribute('width','1500');
+ clone.setAttribute('height','590');
+ return new XMLSerializer().serializeToString(clone);
+}
+function saveTextFile(textValue,fileName,mime){
+ const file=new Blob([textValue],{type:mime});
+ const url=URL.createObjectURL(file);
+ const anchor=document.createElement('a');
+ anchor.href=url;anchor.download=fileName;
+ document.body.appendChild(anchor);
+ anchor.click();
+ anchor.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+function exportFileName(ext){
+ return 'landbruksvei-vk3-bg'+soil.value+'-'+geosynthetic.value+'.'+ext;
+}
+const DXF_LAYERS={
+ KANTER:7,SLITELAG:30,BAERELAG:8,FORSTERKNING:9,
+ UNDERBYGNING:32,FJELL:8,SAND:2,GRUS:3,MORENE:33,LEIRE:34,
+ GROEFT:4,FIBERDUK:4,GEONETT:6,MAAL:5,TEKST:7,ANNOTASJON:7
+};
+function cadLayer(element){
+ const s=(element.getAttribute('stroke')||'').toLowerCase();
+ const f=(element.getAttribute('fill')||'').toLowerCase();
+ const path=(element.getAttribute('data-layer')||'').toLowerCase();
+ if(path==='forsterkningslag'||f.includes('#rein'))return 'FORSTERKNING';
+ if(f.includes('#wear'))return 'SLITELAG';
+ if(f.includes('#base'))return 'BAERELAG';
+ if(f.includes('#earth'))return 'UNDERBYGNING';
+ if(f.includes('#rock'))return 'FJELL';
+ if(f.includes('#sand'))return 'SAND';
+ if(f.includes('#gravel'))return 'GRUS';
+ if(f.includes('#moraine'))return 'MORENE';
+ if(f.includes('#sediment'))return 'LEIRE';
+ if(s==='#13aad5'||s==='#986fc0'||s==='#17acd2'||s==='#13a9d5')return s==='#986fc0'?'GEONETT':'FIBERDUK';
+ if(s==='#157ca2'||s==='#147ba4'||s==='#155e83')return 'GROEFT';
+ if(s==='#547183'||s==='#496375')return 'MAAL';
+ if(element.tagName.toLowerCase()==='text')return 'TEKST';
+ return 'KANTER';
+}
+function matMultiply(p,q){
+ return [p[0]*q[0]+p[2]*q[1],p[1]*q[0]+p[3]*q[1],
+ p[0]*q[2]+p[2]*q[3],p[1]*q[2]+p[3]*q[3],
+ p[0]*q[4]+p[2]*q[5]+p[4],p[1]*q[4]+p[3]*q[5]+p[5]];
+}
+const matIdentity=()=>[1,0,0,1,0,0];
+function svgTransform(v){
+ let m=matIdentity();
+ const rex=/([a-zA-Z]+)\s*\(([^)]*)\)/g;let found;
+ while((found=rex.exec(v||''))){
+  const name=found[1].toLowerCase();
+  const a=(found[2].match(/[-+]?(?:\d*\.?\d+)(?:[eE][-+]?\d+)?/g)||[]).map(Number);
+  let q=matIdentity();
+  if(name==='translate'){q[4]=a[0]||0;q[5]=a[1]||0;}
+  else if(name==='scale'){q[0]=a[0]??1;q[3]=a[1]??q[0];}
+  else if(name==='rotate'){
+   const t=(a[0]||0)*Math.PI/180,c=Math.cos(t),sn=Math.sin(t);
+   q=[c,sn,-sn,c,0,0];
+   if(a.length>=3)q=matMultiply(matMultiply([1,0,0,1,a[1],a[2]],q),[1,0,0,1,-a[1],-a[2]]);
+  }else if(name==='matrix'&&a.length===6)q=a;
+  m=matMultiply(m,q);
+ }
+ return m;
+}
+function svgPathToPolylines(path){
+ // SVG rendered by this application uses M/L/H/V/Z (absolute and relative).
+ const t=(path||'').match(/[MmLlHhVvZz]|[-+]?(?:\d*\.?\d+)(?:[eE][-+]?\d+)?/g)||[];
+ let i=0,x=0,y=0,sx=0,sy=0,cmd='',points=[],result=[];
+ const emit=closed=>{
+   if(points.length>=2)result.push({points,closed});
+   points=[];
+ };
+ const isCommand=z=>/^[a-zA-Z]$/.test(z);
+ while(i<t.length){
+  if(isCommand(t[i])){cmd=t[i++];if(cmd==='Z'||cmd==='z'){emit(true);x=sx;y=sy;cmd='';continue;}}
+  if(!cmd)break;
+  const relative=cmd===cmd.toLowerCase(),op=cmd.toUpperCase();
+  const numericCount=op==='H'||op==='V'?1:2;
+  if(i+numericCount>t.length||t.slice(i,i+numericCount).some(isCommand))break;
+  if(op==='M'||op==='L'){
+   const u=Number(t[i++]),v=Number(t[i++]);
+   x=relative?x+u:u;y=relative?y+v:v;
+   if(op==='M'){emit(false);sx=x;sy=y;cmd=relative?'l':'L';}
+   points.push([x,y]);
+  }else if(op==='H'){
+   const u=Number(t[i++]);x=relative?x+u:u;points.push([x,y]);
+  }else if(op==='V'){
+   const v=Number(t[i++]);y=relative?y+v:v;points.push([x,y]);
+  }else break;
+ }
+ emit(false);
+ return result;
+}
+function exportDxfString(svgElement){
+ // Units are intentionally unitless: the schematic has nonuniform depiction
+ // of pavement and terrain and MUST NOT be interpreted as dimensioned CAD data.
+ const e=[];
+ const fmt=n=>Number.isFinite(n)?Number(n.toFixed(5)).toString():'0';
+ const add=(...args)=>e.push(...args.map(String));
+ const pt=(matrix,x,y)=>{
+  const xx=matrix[0]*x+matrix[2]*y+matrix[4];
+  const yy=matrix[1]*x+matrix[3]*y+matrix[5];
+  return [xx,590-yy];
+ };
+ const line=(a,b,layer)=>{
+  if(Math.hypot(a[0]-b[0],a[1]-b[1])<.001)return;
+  add(0,'LINE',8,layer,10,fmt(a[0]),20,fmt(a[1]),30,0,11,fmt(b[0]),21,fmt(b[1]),31,0);
+ };
+ const poly=(points,closed,layer)=>{
+  if(points.length<2)return;
+  if(points.length===2){line(points[0],points[1],layer);return;}
+  add(0,'LWPOLYLINE',8,layer,90,points.length,70,closed?1:0);
+  for(const p of points)add(10,fmt(p[0]),20,fmt(p[1]));
+ };
+ const unicodeDxf=t=>String(t).replace(/[\r\n]+/g,' ').replace(/[^\x20-\x7E]/g,c=>{
+  const hex=c.codePointAt(0).toString(16).toUpperCase().padStart(4,'0');
+  return '\\U+'+hex;
+ });
+ const walk=(node,matrix)=>{
+  if(node.nodeType!==1)return;
+  const tag=node.tagName.toLowerCase();
+  if(tag==='defs'||tag==='pattern'||tag==='title'||tag==='desc')return;
+  const m=matMultiply(matrix,svgTransform(node.getAttribute('transform')));
+  const num=(key,def=0)=>Number(node.getAttribute(key)??def);
+  const layer=cadLayer(node);
+  if(tag==='path'){
+   const paths=svgPathToPolylines(node.getAttribute('d'));
+   paths.forEach(p=>poly(p.points.map(v=>pt(m,v[0],v[1])),p.closed,layer));
+  }else if(tag==='line'){
+   line(pt(m,num('x1'),num('y1')),pt(m,num('x2'),num('y2')),layer);
+  }else if(tag==='rect'){
+   const x=num('x'),y=num('y'),w=num('width'),h=num('height');
+   poly([[x,y],[x+w,y],[x+w,y+h],[x,y+h]].map(p=>pt(m,p[0],p[1])),true,layer);
+  }else if(tag==='circle'){
+   const p=pt(m,num('cx'),num('cy'));
+   add(0,'CIRCLE',8,layer,10,fmt(p[0]),20,fmt(p[1]),30,0,40,fmt(num('r')*Math.hypot(m[0],m[1])));
+  }else if(tag==='text'){
+   const t=(node.textContent||'').trim();
+   if(t){
+    const pos=pt(m,num('x'),num('y'));
+    const deg=-Math.atan2(m[1],m[0])*180/Math.PI;
+    const size=num('font-size',15)*.85*Math.hypot(m[0],m[1]);
+    const centered=node.getAttribute('text-anchor')==='middle';
+    add(0,'TEXT',8,'TEKST',10,fmt(pos[0]),20,fmt(pos[1]),30,0,40,fmt(size),1,unicodeDxf(t),50,fmt(deg));
+    if(centered)add(72,1,11,fmt(pos[0]),21,fmt(pos[1]),31,0);
+   }
+  }
+  for(const child of node.children||[])walk(child,m);
+ };
+ walk(svgElement,matIdentity());
+ // Add unambiguous warning directly in the CAD model.
+ add(0,'TEXT',8,'ANNOTASJON',10,260,20,16,30,0,40,20,1,'PRINSIPPSKISSE - IKKE MAALFAST / NOT TO SCALE');
+ add(0,'TEXT',8,'ANNOTASJON',10,260,20,42,30,0,40,14,1,'Utviklet av Nikolai Medvedev - Veiklasse 3');
+ const header=['0','SECTION','2','HEADER','9','$ACADVER','1','AC1021','9','$INSUNITS','70','0','9','$MEASUREMENT','70','1','0','ENDSEC'];
+ const layers=['0','SECTION','2','TABLES','0','TABLE','2','LAYER','70',String(Object.keys(DXF_LAYERS).length)];
+ for(const [name,color] of Object.entries(DXF_LAYERS))layers.push('0','LAYER','2',name,'70','0','62',String(color),'6','CONTINUOUS');
+ layers.push('0','ENDTAB','0','ENDSEC');
+ return [...header,...layers,'0','SECTION','2','ENTITIES',...e,'0','ENDSEC','0','EOF',''].join('\r\n');
+}
+$('saveSvg').addEventListener('click',()=>{
+ try{saveTextFile(svgForDownload(),exportFileName('svg'),'image/svg+xml;charset=utf-8');}
+ catch(error){alert('Kunne ikke eksportere SVG: '+error.message);}
+});
+$('saveDxf').addEventListener('click',()=>{
+ try{
+  const svg=$('diagram').querySelector('svg');
+  if(!svg)throw new Error('Ingen tegning tilgjengelig');
+  saveTextFile(exportDxfString(svg),exportFileName('dxf'),'application/dxf;charset=utf-8');
+ }catch(error){alert('Kunne ikke eksportere DXF: '+error.message);}
+});
+
 $('print').addEventListener('click',()=>window.print());
 $('copy').addEventListener('click',async()=>{
  const L=sideInfo('left'),R=sideInfo('right'),d=ditchDraft();
