@@ -143,7 +143,6 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
         <label for="leftType">Skråningstype</label>
         <select id="leftType"><option value="cut" selected>Skjæring – med grøft</option><option value="fill">Fylling – uten grøft</option></select>
         <label for="leftMaterial">Materiale</label><select id="leftMaterial"></select>
-        <label for="leftHeight">Terrengforskjell (m)</label><input id="leftHeight" type="number" min="0.1" max="8" step="0.1" value="1">
         <div class="muted" id="leftHelp"></div>
       </div>
       <div class="side-card">
@@ -151,7 +150,6 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
         <label for="rightType">Skråningstype</label>
         <select id="rightType"><option value="cut">Skjæring – med grøft</option><option value="fill" selected>Fylling – uten grøft</option></select>
         <label for="rightMaterial">Materiale</label><select id="rightMaterial"></select>
-        <label for="rightHeight">Terrengforskjell (m)</label><input id="rightHeight" type="number" min="0.1" max="8" step="0.1" value="1">
         <div class="muted" id="rightHelp"></div>
       </div>
     </div>
@@ -186,7 +184,7 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
         <span class="badge">Illustrasjon oppdateres automatisk</span>
       </div>
       <div id="diagram"></div>
-      <p class="muted">Venstre og høyre side kan velges separat. Grøft bare ved skjæring, fylling uten grøft.</p>
+      <p class="muted">Venstre og høyre side velges separat. Grøft vises bare ved skjæring; skråningshøyde er illustrativ.</p>
       <div class="results" id="ditchMetrics" style="grid-template-columns:repeat(2,minmax(0,1fr))">
         <div class="metric"><small>Grøftedybde under planum</small><strong id="ditchDepthOut">200 mm</strong></div>
         <div class="metric"><small>Bunnbredde</small><strong id="ditchBottomOut">300 mm</strong></div>
@@ -275,8 +273,8 @@ const formatNo=n=>String(n).replace('.',',');
 const fmt2=n=>n.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2});
 function sideInfo(key){
  const type=$(key+'Type').value,material=SLOPE_DATA[type].find(x=>x.id===$(key+'Material').value)||SLOPE_DATA[type][0];
- const v=$(key+'Height').value,h=Number(v),valid=v!==''&&Number.isFinite(h)&&h>=0.1&&h<=8;
- return {type,material,height:valid?h:1,valid,ratio:material.h/material.v};
+ // Only a symbolic drawing height: no real terrain height input.
+ return {type,material,height:1,ratio:material.h/material.v};
 }
 function populateSide(key){
  const type=$(key+'Type').value,el=$(key+'Material'),before=el.value,list=SLOPE_DATA[type];
@@ -343,6 +341,11 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  const yTop=py-total*scale,yWear=yTop+100*scale,yBase=yWear+baseMm*scale;
  const xTopL=cx-half,xTopR=cx+half,xLeft=y=>xTopL-(y-yTop)*m,xRight=y=>xTopR+(y-yTop)*m;
  const baseL=xLeft(py),baseR=xRight(py);
+ const leftToeY=py+L.height*1000*scale,rightToeY=py+R.height*1000*scale;
+ const leftFillToe=baseL-L.height*1000*scale*L.ratio;
+ const rightFillToe=baseR+R.height*1000*scale*R.ratio;
+ const bottomLeft=L.type==='fill'?leftFillToe:20;
+ const bottomRight=R.type==='fill'?rightFillToe:1480;
  const layer=(a,b)=>`M${xLeft(a)} ${a} H${xRight(a)} L${xRight(b)} ${b} H${xLeft(b)} Z`;
  const pat=s=>({solidrock:'rockSolid',looserock:'rockLoose',stone:'gravel',sand:'sand',moraine:'moraine',fine:'sediment',blasted:'rockLoose',rockgravel:'gravel',sandmoraine:'moraine'})[s.material.id]||'moraine';
   // Fill masses are carried down to the bottom of the section and continue beneath
@@ -405,19 +408,20 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  <pattern id="moraine" width="34" height="28" patternUnits="userSpaceOnUse"><rect width="34" height="28" fill="#b39c85"/><circle cx="6" cy="7" r="3" fill="#7f736a"/><path d="M17 5l8 1 3 8-12 3z" fill="#877b6e"/><circle cx="23" cy="24" r="2.4" fill="#dccbb5"/></pattern>
  <pattern id="sediment" width="34" height="26" patternUnits="userSpaceOnUse"><rect width="34" height="26" fill="#b9aa9c"/><path d="M0 8H34 M0 15H34 M0 22H34" stroke="#84766c" stroke-width="1"/></pattern>
  </defs>
- <!-- Geological background uses fylling texture also BELOW the ditch.
-      Cut rock is drawn on top and the ditch cavity is cleared afterwards. -->
+ <!-- Fill material continues below the grøft but terminates at the toe of each filling slope. -->
  ${L.type==='fill'&&R.type==='fill'
-  ? `<rect data-ground="left-foundation" x="20" y="${py}" width="${cx-20}" height="${baseEarth-py}" fill="url(#${pat(L)})"/>
-  <rect data-ground="right-foundation" x="${cx}" y="${py}" width="${1480-cx}" height="${baseEarth-py}" fill="url(#${pat(R)})"/>`
-  : L.type==='fill'||R.type==='fill'
-    ? `<rect data-ground="fill-foundation" x="20" y="${py}" width="1460" height="${baseEarth-py}" fill="url(#${pat(L.type==='fill'?L:R)})"/>`
-    : `<rect data-ground="existing-foundation" x="20" y="${py}" width="1460" height="${baseEarth-py}" fill="url(#earth)"/>`}
+  ? `<path data-ground="left-foundation" d="M${cx} ${py} H${baseL} L${leftFillToe} ${leftToeY} V${baseEarth} H${cx} Z" fill="url(#${pat(L)})"/>
+  <path data-ground="right-foundation" d="M${cx} ${py} H${baseR} L${rightFillToe} ${rightToeY} V${baseEarth} H${cx} Z" fill="url(#${pat(R)})"/>`
+  : R.type==='fill'
+   ? `<path data-ground="fill-foundation" d="M20 ${py} H${baseR} L${rightFillToe} ${rightToeY} V${baseEarth} H20 Z" fill="url(#${pat(R)})"/>`
+   : L.type==='fill'
+    ? `<path data-ground="fill-foundation" d="M1480 ${py} H${baseL} L${leftFillToe} ${leftToeY} V${baseEarth} H1480 Z" fill="url(#${pat(L)})"/>`
+    : `<rect data-ground="existing-foundation" x="${baseL}" y="${py}" width="${baseR-baseL}" height="${baseEarth-py}" fill="url(#earth)"/>`}
  <!-- Fill masses extend across the road foundation and down to the section datum. -->
  ${renderFilling('left',L,baseL)}${renderFilling('right',R,baseR)}
  <!-- Cut geology overlays fill where bedrock continues diagonally under the road. -->
  ${renderRockCut('left',L,baseL)}${renderRockCut('right',R,baseR)}
- <line x1="20" y1="${baseEarth}" x2="1480" y2="${baseEarth}" stroke="#7a8c99" stroke-width="1.4" opacity=".75"/>
+ <line x1="${bottomLeft}" y1="${baseEarth}" x2="${bottomRight}" y2="${baseEarth}" stroke="#7a8c99" stroke-width="1.4" opacity=".75"/>
  ${extraMm>0?`<path data-layer="forsterkningslag" d="${layer(yBase,py)}" fill="url(#rein)" stroke="#4c6556" stroke-width="2.3"/>`:''}
  <path d="${layer(yWear,yBase)}" fill="url(#base)" stroke="#4d5960" stroke-width="1.5"/>
  <path d="${layer(yTop,yWear)}" fill="url(#wear)" stroke="#816a58" stroke-width="1.5"/>
@@ -431,7 +435,7 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  <text x="${cx}" y="${py+27}" text-anchor="middle" font-size="14" font-weight="700" fill="#284558">Planum</text>
  <text x="${cx}" y="${py+96}" text-anchor="middle" font-size="22" font-weight="800" fill="#433327">Underbygning</text>
  ${label('left',L)}${label('right',R)}
- <text x="${cx}" y="552" text-anchor="middle" font-size="14" fill="#597487">Prinsippskisse – ikke i målestokk. Stabilitet og terreng må kontrolleres.</text>
+ <text x="${cx}" y="552" text-anchor="middle" font-size="14" fill="#597487">Prinsippskisse – terrenghøyde er illustrativ. Ikke i målestokk.</text>
  </svg>`;
 }
 function update(){
@@ -442,8 +446,7 @@ function update(){
  $('leftHelp').textContent=desc(L)+(L.type==='cut'?' · med grøft':' · uten grøft');
  $('rightHelp').textContent=desc(R)+(R.type==='cut'?' · med grøft':' · uten grøft');
  const cautions=[];
- if(!L.valid||!R.valid)cautions.push('Høydeforskjell må være 0,1–8 m; skissen bruker 1 m ved ugyldig verdi.');
- if([L,R].some(x=>x.type==='fill'&&x.height>5))cautions.push('Over 5 m fyllingshøyde må skråningen gradvis slakes ut mot 1:4.');
+ if([L,R].some(x=>x.type==='fill'))cautions.push('Ved faktisk fyllingshøyde over 5 m må skråningen vurderes særskilt og gradvis slakes ut mot 1:4.');
  if([L,R].some(x=>x.material.id==='fine'))cautions.push('Leire krever egen stabilitetsvurdering.');
  if([L,R].some(x=>x.type==='fill'&&x.material.id==='sandmoraine'))cautions.push('Høyt finstoffinnhold krever slakere fyllingsskråning.');
  $('slopeAdvice').textContent='Venstre: '+desc(L)+'. Høyre: '+desc(R)+'. '+cautions.join(' ');
@@ -462,14 +465,14 @@ function update(){
  $('warningBox').innerHTML='<strong>Faglig kontroll:</strong> Tabellhelningene er ikke stabilitetsdokumentasjon. Kontroller erosjon, vannmengde og lokale grunnforhold. Skissen er ikke målfast.';
 }
 ['change','input'].forEach(e=>{soil.addEventListener(e,update);bearing.addEventListener(e,update);wear.addEventListener(e,update);reinforcement.addEventListener(e,update);geosynthetic.addEventListener(e,update);});
-for(const key of ['left','right']){$(key+'Type').addEventListener('change',()=>populateSide(key));$(key+'Material').addEventListener('change',update);$(key+'Height').addEventListener('input',update);}
+for(const key of ['left','right']){$(key+'Type').addEventListener('change',()=>populateSide(key));$(key+'Material').addEventListener('change',update);}
 ditchCondition.addEventListener('change',applyDitchCondition);ditchDepth.addEventListener('input',update);ditchBottom.addEventListener('input',update);ditchInner.addEventListener('change',update);
 soil.addEventListener('change',applyAdvice);
 $('print').addEventListener('click',()=>window.print());
 $('copy').addEventListener('click',async()=>{
  const L=sideInfo('left'),R=sideInfo('right'),d=ditchDraft();
  const base=TABLE[soil.value][Number(bearing.value)][Number(wear.value)]*10,extra=Math.max(0,Number(reinforcement.value)||0);
- const describe=(label,x)=>label+': '+(x.type==='cut'?'Skjæring':'Fylling')+', '+x.material.name+' ('+x.material.v+':'+formatNo(x.material.h)+'), høydeforskjell '+x.height+' m'+(x.type==='cut'?', med grøft':', uten grøft');
+ const describe=(label,x)=>label+': '+(x.type==='cut'?'Skjæring':'Fylling')+', '+x.material.name+' ('+x.material.v+':'+formatNo(x.material.h)+')'+(x.type==='cut'?', med grøft':', uten grøft');
  const items=['Landbruksvei Overbygningskalkulator','Utviklet av Nikolai Medvedev','Veiklasse 3, bæreevnegruppe '+soil.value,'Slitelag 100 mm','Bærelag '+base+' mm','Forsterkningslag '+extra+' mm','Sum '+(100+base+extra)+' mm',describe('Venstre',L),describe('Høyre',R)];
  if(d)items.push('Grøfter i skjæring: dybde '+d.depth+' mm, bunnbredde '+d.bottom+' mm');
  items.push('Kilde: Normaler for landbruksveier, versjon 2 mars 2026. Forutsetter faglig kontroll.');
