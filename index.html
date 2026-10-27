@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#10283a"><title>Landbruksvei | Overbygningskalkulator</title>
+<style>
+:root{font-family:Inter,Segoe UI,Arial,sans-serif;color:#173044;background:#eff3f5}*{box-sizing:border-box}body{margin:0}header{background:#10283a;color:white;padding:24px max(20px,calc((100vw - 1120px)/2))}header h1{font-size:25px;margin:0 0 7px}header p{margin:0;color:#c6d5df}main{max-width:1120px;margin:auto;padding:24px 16px;display:grid;grid-template-columns:420px 1fr;gap:20px}.panel{background:white;padding:23px;border:1px solid #dce4e9;border-radius:13px;box-shadow:0 4px 18px #18304408}h2{font-size:18px;margin:0 0 18px}label{display:block;font-weight:650;font-size:13px;margin:17px 0 7px}select,input{width:100%;padding:12px;border:1px solid #c9d4dc;border-radius:8px;font:inherit;background:white;color:#183044}.muted{color:#637585;font-size:12px;line-height:1.5}.note{background:#f0f5f8;padding:12px;border-left:3px solid #5c8daa;border-radius:5px;margin-top:18px;font-size:13px;line-height:1.5}.alert{background:#fff6e7;border-left-color:#d99433}.results{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.metric{background:#f0f5f8;padding:13px;border-radius:9px}.metric small{display:block;color:#617482;margin-bottom:8px}.metric strong{font-size:23px} .layers{margin:22px 0;border-radius:8px;overflow:hidden;text-align:center;font-weight:650}.layer{padding:17px 5px}.wear{background:#cdb48c;color:#282318}.base{background:#7697ab;color:white}.strength{background:#b2bbc0;color:#22333b}.ground{background:#866e52;color:white}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}button{padding:11px 15px;background:#17668b;color:white;border:0;border-radius:8px;font-weight:650;cursor:pointer}button.secondary{background:#e7eff4;color:#174260}footer{font-size:12px;color:#657887;max-width:1120px;margin:10px auto 26px;padding:0 16px}a{color:#146990} @media(max-width:850px){main{grid-template-columns:1fr}.results{grid-template-columns:1fr 1fr}}@media print{header{color:black;background:white}body{background:white}main{display:block}.panel{box-shadow:none;margin-bottom:12px}button{display:none}select,input{border:0;padding:3px}.note{break-inside:avoid}}
+</style></head><body><header><h1>Landbruksvei · Overbygningskalkulator</h1><p>Foreløpig fagverktøy · Tabellbasert dimensjonering · versjon 0.1</p></header>
+<main><section class="panel"><h2>1. Prosjekteringsgrunnlag</h2>
+<label for="road">Veiklasse</label><select id="road"><option value="3">Veiklasse 3 – Standardvei</option><option value="2" disabled>Veiklasse 2 – kommer senere</option><option value="4" disabled>Veiklasse 4 – kommer senere</option><option value="5" disabled>Veiklasse 5 – kommer senere</option></select>
+<label for="soil">Bæreevnegruppe i underbygningen</label><select id="soil"><option value="1">1 – Fjellskjæring og steinfylling</option><option value="2">2 – Velgradert grus og sand</option><option value="3">3 – Ensgradert sand</option><option value="4" selected>4 – Grus, sand og morene med lite finstoff</option><option value="5">5 – Grus, sand og morene med mye finstoff</option><option value="6">6 – Silt og leire</option><option value="7a">7a – Bløt silt og leire</option><option value="7b">7b – Torvmark</option></select>
+<label for="bearing">Bærelagskvalitet</label><select id="bearing"><option value="0">b-A – Knust fjell</option><option value="1">b-B – Knust løsmasse</option><option value="2">b-C – Sortert løsmasse</option><option value="3">b-D – Uforedlet materiale</option></select>
+<label for="wear">Slitelagskvalitet</label><select id="wear"><option value="0">s-A – Knust fjell</option><option value="1">s-B – Knust løsmasse</option></select>
+<label for="reinforcement">Forsterkningslag (cm)</label><input id="reinforcement" type="number" min="0" step="5" value="0" aria-describedby="recommendation"><div class="muted" id="recommendation"></div>
+<label for="project">Prosjekt / merknad</label><input id="project" maxlength="140" placeholder="Valgfritt prosjektnavn">
+<div class="note">Verdier er fra <b>Normaler for landbruksveier, versjon 2 – mars 2026</b>, tabell 3.2 (veiklasse 3). Slitelag: minst 10 cm ferdig komprimert.</div></section>
+<section class="panel"><h2>2. Dimensjonering og lagoppbygning</h2><div class="results"><div class="metric"><small>Slitelag</small><strong id="wearout">100 mm</strong></div><div class="metric"><small>Bærelag</small><strong id="baseout">250 mm</strong></div><div class="metric"><small>Sum</small><strong id="totalout">350 mm</strong></div></div>
+<div class="layers"><div class="layer wear">Slitelag <span id="wlabel">100 mm</span></div><div class="layer base">Bærelag <span id="blabel">250 mm</span></div><div class="layer strength" id="flayer" hidden>Forsterkningslag <span id="flabel"></span></div><div class="layer ground">Planum / underbygning</div></div>
+<div class="note" id="warning"></div><div class="note alert"><b>Faglig kontroll:</b> Verifiser grunnforhold, materialenes gradering, frostforhold, drenering, komprimering og eventuelt behov for fiberduk/geosynteter. Beregningen erstatter ikke prosjekterendes vurdering. For veiklasse 3 med helårsbruk også i bæresvake perioder skal bærelag dimensjoneres etter tabell for veiklasse 2.</div>
+<p class="muted">Kilde: <a target="_blank" rel="noopener" href="https://skogkurs.no/wp-content/uploads/3-tekniske-og-geometriske-krav-til-bilveier-veiklasse-3.pdf">Veiklasse 3 – tabell 3.2, side 32</a>. Ingen prosjektdata sendes til en server.</p>
+<div class="actions"><button type="button" onclick="window.print()">Skriv ut / lagre som PDF</button><button type="button" class="secondary" id="copy">Kopier beregning</button></div></section></main><footer>Utviklingsversjon · Kun veiklasse 3 er aktivert og kontrollert mot tabellgrunnlaget. Ikke et offisielt produkt fra Skogkurs eller en myndighet.</footer>
+<script>
+'use strict';
+// Kilde: Normaler for landbruksveier, versjon 2, mars 2026, tabell 3.2.
+// Per grunnklasse: fire bærelagskvaliteter b-A ... b-D; per kvalitet: slitelag s-A, s-B.
+const TABLE={
+ '1':[[10,10],[15,15],[20,20],[25,30]],
+ '2':[[15,15],[20,20],[25,30],[35,40]],
+ '3':[[20,20],[25,30],[35,40],[45,55]],
+ '4':[[25,30],[35,35],[45,50],[60,65]],
+ '5':[[35,40],[45,50],[60,65],[80,85]],
+ '6':[[40,45],[50,55],[70,75],[90,95]],
+ '7a':[[55,55],[70,75],[95,100],[125,130]],
+ '7b':[[55,55],[70,75],[95,100],[125,130]]
+};
+const $=id=>document.getElementById(id);
+const soil=$('soil'),bearing=$('bearing'),wear=$('wear'),reinforcement=$('reinforcement');
+function update(){
+ const group=soil.value,b=+bearing.value,s=+wear.value;
+ const base=TABLE[group][b][s];
+ const raw=Number(reinforcement.value);
+ const valid=reinforcement.value.trim()!=='' && Number.isFinite(raw)&&raw>=0;
+ const extra=valid?raw:0;
+ $('wearout').textContent='100 mm'; $('baseout').textContent=(base*10)+' mm';
+ $('totalout').textContent=valid?((base+10+extra)*10)+' mm':'–';
+ $('wlabel').textContent='100 mm';$('blabel').textContent=(base*10)+' mm';
+ $('flayer').hidden=!(extra>0);$('flabel').textContent=(extra*10)+' mm';
+ const recommendations={ '5':'Veiledende forsterkningslag: 5–10 cm ved behov.', '6':'Veiledende forsterkningslag: 30 cm.', '7a':'Veiledende forsterkningslag: 60 cm.', '7b':'Torvmark/myr: særskilt prosjektering med geosynteter anbefales.'};
+ $('recommendation').textContent=recommendations[group]||'Forsterkningslag vurderes ved behov (ikke automatisk påkrevd).';
+ const warnings=[];
+ if(!valid)warnings.push('Ugyldig tykkelse på forsterkningslag. Oppgi et tall ≥ 0.');
+ if(group==='7b')warnings.push('Torvmark krever særskilt vurdering av geosynteter og byggegrunn.');
+ if(['5','6','7a'].includes(group))warnings.push('Kontroller anbefalt forsterkningslag – kalkulatoren legger det ikke inn automatisk.');
+ warnings.push('Tabellverdien er minimum bærelagstykkelse. Tilleggslaget er et manuelt valg og ikke en automatisk godkjent dimensjonering.');
+ $('warning').textContent=warnings.join(' ');
+ return {group,b,s,base,extra,valid};
+}
+[soil,bearing,wear,reinforcement,$('project')].forEach(e=>e.addEventListener('input',update));
+$('copy').addEventListener('click',async()=>{const d=update();if(!d.valid)return;const report=`Landbruksvei – overbygningskalkulator\nProsjekt: ${$('project').value||'–'}\nVeiklasse: 3\nUnderbygning: gruppe ${d.group}\nBærelag: b-${'ABCD'[d.b]}, ${d.base*10} mm\nSlitelag: s-${'AB'[d.s]}, 100 mm\nForsterkningslag (valgt): ${d.extra*10} mm\nSum: ${(d.base+10+d.extra)*10} mm\nKilde: Normaler for landbruksveier, v2 mars 2026, tabell 3.2.\nForutsetter faglig kontroll.`;try{await navigator.clipboard.writeText(report);$('copy').textContent='Kopiert!';setTimeout(()=>$('copy').textContent='Kopier beregning',1700)}catch(e){alert('Kunne ikke kopiere. Bruk Skriv ut / PDF.')}});
+update();
+</script></body></html>
