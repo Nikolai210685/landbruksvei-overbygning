@@ -354,12 +354,12 @@ function update(){
   const degrees=Math.atan(slope.v/slope.h)*180/Math.PI;
   const slopePercent=100*slope.v/slope.h;
   const highFill=slopeType.value==='fill' && fillHeight.value.trim()!=='' && Number(fillHeight.value)>5;
-  const fineFill=slopeType.value==='fill' && slope.id==='fine';
   const highFines=slopeType.value==='fill' && slope.id==='sandmoraine';
   const deepClay=(slope.id==='fine');
   let slopeAdvice='Største skråningshelning etter Normaler for landbruksveier, pkt. 6.2.2: '+slopeText+
     ' ('+formatNo(slopePercent.toFixed(1))+' % / '+formatNo(degrees.toFixed(1))+'°). '+
     'Helning oppgis her som vertikal : horisontal.';
+  if(slopeType.value==='fill')slopeAdvice+=' Ved fylling skal skråningen gradvis slakes ut til 1:4 etter 5 m høydeforskjell fra planum.';
   if(highFines)slopeAdvice+=' Ved høyt finstoffinnhold bør fyllingen gjøres slakere.';
   if(deepClay)slopeAdvice+=' Ved dyp leire (>2 m) må det utvises særskilt aktsomhet.';
   if(highFill)slopeAdvice+=' Ved høydeforskjell over 5 m må fyllingsskråningen utformes gradvis slakere til 1:4; vist standardhelning kan ikke brukes uendret hele veien.';
@@ -415,7 +415,7 @@ $('copy').addEventListener('click',async()=>{
     `Skråningstype: ${slopeType.value==='fill'?'Fylling':'Skjæring'}\n`+
     `Skråningsmateriale: ${selectedSlope().name}\n`+
     `Største skråningshelning: ${selectedSlope().v}:${formatNo(selectedSlope().h)}\n`+
-    `Fyllingshøyde (oppgitt): ${fillHeight.value.trim()||'Ikke oppgitt'} m\n`+
+    (slopeType.value==='fill' ? `Fyllingshøyde (oppgitt): ${fillHeight.value.trim()||'Ikke oppgitt'} m\n` : '')+
     `Sum overbygning: ${totalMm} mm\n`+
     `Kilde: Normaler for landbruksveier, versjon 2, mars 2026, tabell 3.2 og pkt. 6.2.2.\n`+
     `Forutsetter faglig kontroll.`;
