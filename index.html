@@ -64,7 +64,11 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
 .footer-card .mini{font-size:14px}
 @media (max-width:980px){main{grid-template-columns:1fr}.results{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){header{padding-top:24px}.results,.legend{grid-template-columns:1fr}.credit-box{width:100%}.metric strong{font-size:21px}}
-</style>
+.side-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.side-card{background:#f6fafc;border:1px solid #d8e6ee;border-radius:14px;padding:14px;min-width:0}
+.side-title{font-size:16px;font-weight:800;border-bottom:1px solid #dbe8ee;padding-bottom:8px;color:#144c69}
+.side-card label{margin:10px 0 5px}.side-card select,.side-card input{width:100%;min-width:0;padding:9px;font-size:13px}
+@media(max-width:560px){.side-grid{grid-template-columns:1fr}}</style>
 </head>
 <body>
 <header>
@@ -132,45 +136,36 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
     </select>
     <div class="muted">Valget endrer ikke automatisk lagtykkelsen. Geonett krever egen dokumentasjon og vurdering av eventuell reduksjon.</div>
 
-    <h3>2. Skråningshelning</h3>
-    <label for="slopeType">Skråningstype</label>
-    <select id="slopeType">
-      <option value="fill">Fylling – fyllingsskråning</option>
-      <option value="cut">Skjæring – skjæringsskråning</option>
-    </select>
-    <label for="slopeMaterial">Materiale i skråningen</label>
-    <select id="slopeMaterial"></select>
-    <div id="fillHeightBlock">
-      <label for="fillHeight">Fyllingshøyde (m, valgfritt)</label>
-      <input id="fillHeight" type="number" min="0" step="0.5" placeholder="F.eks. 2,5">
-      <div class="muted">Brukes til å varsle om særskilt utforming ved større fyllingshøyde. Påvirker ikke tykkelsesberegningen.</div>
+        <h3>2. Terreng på hver side</h3>
+    <div class="side-grid">
+      <div class="side-card">
+        <div class="side-title">Venstre side</div>
+        <label for="leftType">Skråningstype</label>
+        <select id="leftType"><option value="cut" selected>Skjæring – med grøft</option><option value="fill">Fylling – uten grøft</option></select>
+        <label for="leftMaterial">Materiale</label><select id="leftMaterial"></select>
+        <label for="leftHeight">Terrengforskjell (m)</label><input id="leftHeight" type="number" min="0.1" max="8" step="0.1" value="1">
+        <div class="muted" id="leftHelp"></div>
+      </div>
+      <div class="side-card">
+        <div class="side-title">Høyre side</div>
+        <label for="rightType">Skråningstype</label>
+        <select id="rightType"><option value="cut">Skjæring – med grøft</option><option value="fill" selected>Fylling – uten grøft</option></select>
+        <label for="rightMaterial">Materiale</label><select id="rightMaterial"></select>
+        <label for="rightHeight">Terrengforskjell (m)</label><input id="rightHeight" type="number" min="0.1" max="8" step="0.1" value="1">
+        <div class="muted" id="rightHelp"></div>
+      </div>
     </div>
     <div class="note" id="slopeAdvice" aria-live="polite"></div>
-
-    <h3>3. Veigrøft</h3>
+    <h3>3. Veigrøft – bare ved skjæring</h3>
     <label for="ditchCondition">Dreneringsforhold</label>
-    <select id="ditchCondition">
-      <option value="normal">Normal drenering – min. 200 mm under planum</option>
-      <option value="water">Høy grunnvannstand / tilsig fra sidekjæring – min. 350 mm</option>
-    </select>
-    <label for="ditchDepth">Grøftedybde under planum (mm)</label>
-    <input id="ditchDepth" type="number" min="0" max="5000" step="10" value="200">
-    <label for="ditchBottom">Grøftas bunnbredde (mm)</label>
-    <input id="ditchBottom" type="number" min="0" max="5000" step="10" value="300">
-    <label for="ditchInner">Felles helning – overbygning og grøft mot veg (V:H)</label>
-    <select id="ditchInner">
-      <option value="1">1:1</option>
-      <option value="1.5" selected>1:1,5</option>
-      <option value="2">1:2</option>
-      <option value="2.5">1:2,5</option>
-      <option value="3">1:3</option>
-    </select>
-    <label for="ditchOuter">Grøfteskråning mot skjæring (jordart)</label>
-    <select id="ditchOuter"></select>
-    <div class="muted">Ytre skråning hentes fra skjæringstabellen (4.3.2). Helningen mot veg brukes også på overbygningens trapes. Begge sidekantene følger samme helning og videreføres i grøften. Bredden regnes ved planumnivå.</div>
-    <div class="note" id="ditchAdvice" aria-live="polite"></div>
-
-    <div class="note">
+    <select id="ditchCondition"><option value="normal">Normal – min. 200 mm under planum</option><option value="water">Høy grunnvannstand / tilsig – min. 350 mm</option></select>
+    <label for="ditchDepth">Grøftedybde (mm under planum)</label><input id="ditchDepth" type="number" min="0" max="5000" step="10" value="200">
+    <label for="ditchBottom">Bunnbredde (mm)</label><input id="ditchBottom" type="number" min="0" max="5000" step="10" value="300">
+    <label for="ditchInner">Felles helning mot veg og overbygning (V:H)</label>
+    <select id="ditchInner"><option value="1">1:1</option><option value="1.5" selected>1:1,5</option><option value="2">1:2</option><option value="2.5">1:2,5</option><option value="3">1:3</option></select>
+    <p class="muted">Ytre grøfteskråning følger valgt materiale i skjæring. Fylling tegnes uten grøft.</p>
+    <div class="note" id="ditchAdvice"></div>
+<div class="note">
       <strong>Tabellgrunnlag:</strong> Veiklasse 3 er aktivert og kontrollert mot tabell 3.2. Slitelag er satt til 100 mm i henhold til normen. Forsterkningslag prosjekteres ved behov.
     </div>
 
@@ -187,20 +182,20 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
 
     <div class="svg-wrap">
       <div class="svg-title">
-        <strong>Samlet prinsippsnitt – overbygning og grøfter</strong>
+        <strong>Prinsippsnitt – skjæring og fylling på hver side</strong>
         <span class="badge">Illustrasjon oppdateres automatisk</span>
       </div>
       <div id="diagram"></div>
-      <p class="muted">Felles helning for overbygningens sidekant og grøfteskråning mot veg (V:H). Grøftedybde måles fra planum. Skjematisk veibredde.</p>
+      <p class="muted">Venstre og høyre side kan velges separat. Grøft bare ved skjæring, fylling uten grøft.</p>
       <div class="results" id="ditchMetrics" style="grid-template-columns:repeat(2,minmax(0,1fr))">
         <div class="metric"><small>Grøftedybde under planum</small><strong id="ditchDepthOut">200 mm</strong></div>
         <div class="metric"><small>Bunnbredde</small><strong id="ditchBottomOut">300 mm</strong></div>
-        <div class="metric"><small>Grøftebredde ved planum</small><strong id="ditchTopOut">1,00 m</strong></div>
-        <div class="metric"><small>Tverrsnittsareal per grøft under planum</small><strong id="ditchAreaOut">0,13 m²</strong></div>
+        <div class="metric"><small>Grøftebredde ved planum (V/H)</small><strong id="ditchTopOut">1,00 m</strong></div>
+        <div class="metric"><small>Grøfteareal under planum (V/H)</small><strong id="ditchAreaOut">0,13 m²</strong></div>
       </div>
     </div>
 
-    <div class="note" id="slopeSummary" style="margin:12px 0;">Skråningshelning for fylling/skjæring beregnes separat og inngår ikke i denne geometriske overbygningsskissen.</div>
+    <div class="note" id="slopeSummary" style="margin:12px 0;">Terreng, helning og materialteksturer for begge sider vises i tegningen.</div>
 
     <div class="legend">
       <div class="legend-item"><span class="swatch" style="background:var(--slitelag)"></span>Slitelag – fast toppdekke / slitedekke</div>
@@ -275,64 +270,50 @@ const SLOPE_DATA={
  ]
 };
 const $=id=>document.getElementById(id);
-const slopeType=$('slopeType'),slopeMaterial=$('slopeMaterial'),fillHeight=$('fillHeight');
-function formatNo(n){return String(n).replace('.',',');}
-function selectedSlope(){return SLOPE_DATA[slopeType.value].find(x=>x.id===slopeMaterial.value) || SLOPE_DATA[slopeType.value][0];}
-function resetSlopeMaterials(){
- const list=SLOPE_DATA[slopeType.value],prev=slopeMaterial.value;
- slopeMaterial.innerHTML=list.map(x=>'<option value="'+x.id+'">'+x.name+'</option>').join('');
- if(list.some(x=>x.id===prev))slopeMaterial.value=prev;
- else slopeMaterial.value=slopeType.value==='fill'?'sandmoraine':'moraine';
- $('fillHeightBlock').style.display=slopeType.value==='fill'?'block':'none';
- update();
+const ditchCondition=$('ditchCondition'),ditchDepth=$('ditchDepth'),ditchBottom=$('ditchBottom'),ditchInner=$('ditchInner');
+const formatNo=n=>String(n).replace('.',',');
+const fmt2=n=>n.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2});
+function sideInfo(key){
+ const type=$(key+'Type').value,material=SLOPE_DATA[type].find(x=>x.id===$(key+'Material').value)||SLOPE_DATA[type][0];
+ const v=$(key+'Height').value,h=Number(v),valid=v!==''&&Number.isFinite(h)&&h>=0.1&&h<=8;
+ return {type,material,height:valid?h:1,valid,ratio:material.h/material.v};
 }
-const ditchCondition=$('ditchCondition'), ditchDepth=$('ditchDepth'), ditchBottom=$('ditchBottom'), ditchInner=$('ditchInner'), ditchOuter=$('ditchOuter');
-function initDitchMaterials(){
- ditchOuter.innerHTML=SLOPE_DATA.cut.map(x=>'<option value="'+x.id+'">'+x.name+' ('+x.v+':'+formatNo(x.h)+')</option>').join('');
- ditchOuter.value='sand';
+function populateSide(key){
+ const type=$(key+'Type').value,el=$(key+'Material'),before=el.value,list=SLOPE_DATA[type];
+ el.innerHTML=list.map(x=>'<option value="'+x.id+'">'+x.name+' ('+x.v+':'+formatNo(x.h)+')</option>').join('');
+ el.value=list.some(x=>x.id===before)?before:(type==='cut'?'solidrock':'sandmoraine');update();
 }
 function ditchDraft(){
- const depth=Number(ditchDepth.value),bottom=Number(ditchBottom.value);
- const inner=Number(ditchInner.value);
- const outer=SLOPE_DATA.cut.find(x=>x.id===ditchOuter.value)||SLOPE_DATA.cut[3];
- const out=outer.h/outer.v;
- if(ditchDepth.value.trim()===''||ditchBottom.value.trim()===''||!Number.isFinite(depth)||!Number.isFinite(bottom)||depth<0||bottom<0||depth>5000||bottom>5000)return null;
- const depthM=depth/1000,bottomM=bottom/1000;
- const innerM=depthM*inner,outerM=depthM*out,topM=bottomM+innerM+outerM;
- const area=depthM*(bottomM+topM)/2;
- return {depth,bottom,depthM,bottomM,inner,outer,out,innerM,outerM,topM,area};
+ const h=Number(ditchDepth.value),b=Number(ditchBottom.value),m=Number(ditchInner.value);
+ if(ditchDepth.value.trim()===''||ditchBottom.value.trim()===''||!Number.isFinite(h)||!Number.isFinite(b)||h<0||b<0||h>5000||b>5000)return null;
+ return {depth:h,bottom:b,m};
 }
-function fmt2(x){return x.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function sideDitch(key,d){
+ const sd=sideInfo(key);if(sd.type!=='cut'||!d)return null;
+ const top=(d.bottom+d.depth*(d.m+sd.ratio))/1000;
+ return {top,area:d.depth/1000*(d.bottom/1000+top)/2};
+}
 function applyDitchCondition(){
- if(ditchCondition.value==='water'){ditchDepth.value='350';ditchBottom.value='500';}
- else {ditchDepth.value='200';ditchBottom.value='300';}
- update();
+ ditchDepth.value=ditchCondition.value==='water'?'350':'200';
+ ditchBottom.value=ditchCondition.value==='water'?'500':'300';update();
 }
 function updateDitch(){
- const d=ditchDraft();
- if(!d){
-   $('ditchDepthOut').textContent='–';
-   $('ditchBottomOut').textContent='–';
-   $('ditchTopOut').textContent='–';
-   $('ditchAreaOut').textContent='–';
-   $('ditchAdvice').textContent='Ugyldige grøftemål. Kontroller verdiene.';
-   return;
+ const d=ditchDraft(),L=sideInfo('left'),R=sideInfo('right'),a=sideDitch('left',d),b=sideDitch('right',d);
+ if(L.type==='fill'&&R.type==='fill'){
+ $('ditchDepthOut').textContent='Ingen';$('ditchBottomOut').textContent='Ingen';
+ $('ditchTopOut').textContent='Ingen grøft';$('ditchAreaOut').textContent='0,00 m²';
+ $('ditchAdvice').textContent='Fylling på begge sider – ingen grøfter.';return;
  }
- const minDepth=ditchCondition.value==='water'?350:200;
- const minBottom=ditchCondition.value==='water'?500:300;
- const note=d.depth<minDepth?'Grøftedybden er mindre enn normens minimum for valgt dreneringsforhold. ':'';
- const note2=d.bottom<minBottom?(ditchCondition.value==='water'?'Bunnbredden er under anbefalte 500 mm ved høy grunnvannstand / tilsig. ':'Bunnbredden er under normens minimum på 300 mm. '):'';
- let info=note+note2;
- if(!info)info='Valgte grøftemål tilfredsstiller de oppgitte minstekravene til dybde og bunnbredde for situasjonen. ';
- if(soil.value==='7b')info+='For torvmark og myr bør grøfter i størst mulig grad unngås. ';
- info+='Grøftegeometrien er skjematisk. Hydraulisk kapasitet, erosjon og stabilitet må vurderes separat.';
- $('ditchAdvice').textContent=info;
- $('ditchDepthOut').textContent=d.depth+' mm';
- $('ditchBottomOut').textContent=d.bottom+' mm';
- $('ditchTopOut').textContent=fmt2(d.topM)+' m';
- $('ditchAreaOut').textContent=fmt2(d.area)+' m²';
-}
-const soil=$('soil'), bearing=$('bearing'), wear=$('wear'), reinforcement=$('reinforcement'), geosynthetic=$('geosynthetic');
+ if(!d){
+ for(const k of ['ditchDepthOut','ditchBottomOut','ditchTopOut','ditchAreaOut'])$(k).textContent='–';
+ $('ditchAdvice').textContent='Ugyldige grøftemål.';return;
+ }
+ $('ditchDepthOut').textContent=d.depth+' mm';$('ditchBottomOut').textContent=d.bottom+' mm';
+ $('ditchTopOut').textContent=(a?fmt2(a.top)+' m':'Ingen')+' / '+(b?fmt2(b.top)+' m':'Ingen');
+ $('ditchAreaOut').textContent=(a?fmt2(a.area)+' m²':'Ingen')+' / '+(b?fmt2(b.area)+' m²':'Ingen');
+ const minD=ditchCondition.value==='water'?350:200,minB=ditchCondition.value==='water'?500:300;
+ $('ditchAdvice').textContent='Grøft kun i skjæring. '+(d.depth<minD?'Dybde under '+minD+' mm. ':'')+(d.bottom<minB?'Bunnbredde under '+minB+' mm. ':'')+'Hydraulikk, erosjon og stabilitet må kontrolleres.';
+}const soil=$('soil'), bearing=$('bearing'), wear=$('wear'), reinforcement=$('reinforcement'), geosynthetic=$('geosynthetic');
 const ADVICE={
  '1':{mm:0,text:'Normalt ikke behov for eget forsterkningslag.'},
  '2':{mm:0,text:'Normalt ikke behov for eget forsterkningslag.'},
@@ -352,160 +333,113 @@ function applyAdvice(){
 function esc(s){return String(s).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]));}
 
 function renderDiagram(baseMm,extraMm,ditch,synt){
- const planum=257, subBottom=366, mid=570;
- const d=ditch&&ditch.depthM>0?ditch:null;
- // Side slope 1:m is shared by the trapezoid and the inside of both ditches.
- // Common uniform drawing scale ensures equal angles on both sides of planum.
- const m=Number(ditchInner.value);
- const upperHalfWidth=130, roadTopL=mid-upperHalfWidth, roadTopR=mid+upperHalfWidth;
- const totalMm=100+baseMm+extraMm;
- const depthMm=d?d.depth:0, bottomMm=d?d.bottom:0, outerRatio=d?d.out:2;
- const maxHorizontal=totalMm*m+depthMm*(m+outerRatio)+bottomMm;
- const sc=Math.min(.23,155/Math.max(totalMm,1),75/Math.max(depthMm,1),375/Math.max(maxHorizontal,1));
- const hW=100*sc,hB=baseMm*sc,hR=extraMm*sc;
- const hG=synt==='none'?0:(synt==='both'?8:4);
- const yTop=planum-hW-hB-hR-hG, yWear=yTop+hW, yBase=yWear+hB, yRein=yBase+hR;
- const lx=y=>roadTopL-(y-yTop)*m,rx=y=>roadTopR+(y-yTop)*m;
- const layer=(a,b)=>`M${lx(a).toFixed(2)} ${a.toFixed(2)} H${rx(a).toFixed(2)} L${rx(b).toFixed(2)} ${b.toFixed(2)} H${lx(b).toFixed(2)} Z`;
- const roadLeft=lx(planum),roadRight=rx(planum);
- const dh=depthMm*sc,inner=dh*m,outer=dh*outerRatio,bw=bottomMm*sc,db=planum+dh;
- const leftOuter=roadLeft-inner-bw-outer;
- const rightOuter=roadRight+inner+bw+outer;
- const lpath=`M${leftOuter} ${planum} L${roadLeft-inner-bw} ${db} H${roadLeft-inner} L${roadLeft} ${planum} Z`;
- const rpath=`M${roadRight} ${planum} L${roadRight+inner} ${db} H${roadRight+inner+bw} L${rightOuter} ${planum} Z`;
- const hasFiber=synt==='fiberduk'||synt==='both',hasNet=synt==='geonett'||synt==='both';
- const source=d?`Grøfter: ${d.depth} mm under planum, bunn ${d.bottom} mm, bredde ${fmt2(d.topM)} m`:'Grøftemål mangler eller er ugyldige';
- const ditchText=(xc,label)=>`<text x="${xc}" y="208" text-anchor="middle" font-size="18" font-weight="750" fill="#254656">${label}</text><text x="${xc}" y="230" text-anchor="middle" font-size="15" fill="#254656">${d?`${d.depth} mm under planum`:'Ingen mål'}</text>`;
- const dim=(xc,xa,xb)=>`<line x1="${xa}" y1="${db+11}" x2="${xb}" y2="${db+11}" stroke="#426176" stroke-width="1.5"/><path d="M${xa} ${db+5}v12 M${xb} ${db+5}v12" stroke="#426176" stroke-width="1.5"/><text x="${xc}" y="${db+30}" text-anchor="middle" font-size="14" font-weight="700" fill="#1b4155">${d?`${d.bottom} mm`:''}</text>`;
- return `<svg viewBox="0 0 1140 415" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Samlet prinsippsnitt med veioverbygning, rektangulær underbygning og veigrøfter på begge sider">
-<defs>
- <pattern id="roadWear" width="12" height="10" patternUnits="userSpaceOnUse"><rect width="12" height="10" fill="#b99c83"/><circle cx="3" cy="3" r="1.4" fill="#866c59"/><circle cx="9" cy="7" r="1.2" fill="#dcc8b5"/></pattern>
- <pattern id="roadBase" width="14" height="12" patternUnits="userSpaceOnUse"><rect width="14" height="12" fill="#76828d"/><circle cx="3" cy="3" r="2" fill="#4b5963"/><circle cx="10" cy="8" r="2.1" fill="#535e69"/></pattern>
- <pattern id="roadRein" width="18" height="17" patternUnits="userSpaceOnUse"><rect width="18" height="17" fill="#abb0aa"/><path d="M2 4l8 2-3 8-6-4z M12 3l6 4-4 8-5-4z" fill="#747f78"/></pattern>
- <pattern id="roadSoil" width="25" height="22" patternUnits="userSpaceOnUse"><rect width="25" height="22" fill="#af927b"/><circle cx="5" cy="6" r="3.5" fill="#826852"/><circle cx="19" cy="15" r="4" fill="#786452"/></pattern>
-</defs>
-<rect x="70" y="${planum}" width="1000" height="${subBottom-planum}" fill="url(#roadSoil)" opacity=".87"/>
-<rect x="${roadLeft}" y="${planum}" width="${roadRight-roadLeft}" height="${subBottom-planum}" fill="#9f846f" stroke="#715e4e" stroke-width="1.4"/>
-<path d="M${roadLeft} ${planum}V${subBottom} M${roadRight} ${planum}V${subBottom}" stroke="#6e5b4b" stroke-width="1.8"/>
-${d?`<path d="${lpath}" fill="#f5f9fb" stroke="#205b75" stroke-width="2.6" stroke-linejoin="round"/><path d="${rpath}" fill="#f5f9fb" stroke="#205b75" stroke-width="2.6" stroke-linejoin="round"/>`:''}
-<path d="${layer(yRein,planum)}" fill="${hasNet?'#8263a6':hasFiber?'#18a3c7':'url(#roadBase)'}" opacity="${synt==='none'?'0':'1'}" stroke="none"/>
-${hG>0&&hasFiber?`<path d="${layer(planum-4,planum)}" fill="#1fb6d7" stroke="#007da9" stroke-width=".7"/>`:''}
-${hG>0&&hasNet?`<path d="${layer(planum-hG,planum-(hasFiber?4:0))}" fill="#8d6bb1" stroke="#614481" stroke-width=".7"/>`:''}
-${extraMm>0?`<path d="${layer(yBase,yRein)}" fill="url(#roadRein)" stroke="#69756d" stroke-width="1.4"/>`:''}
-<path d="${layer(yWear,yBase)}" fill="url(#roadBase)" stroke="#455561" stroke-width="1.5"/>
-<path d="${layer(yTop,yWear)}" fill="url(#roadWear)" stroke="#876c56" stroke-width="1.4"/>
-<path d="M${lx(yTop)} ${yTop} H${rx(yTop)} L${rx(planum)} ${planum} H${lx(planum)} Z" fill="none" stroke="#243847" stroke-width="2.4"/>
-<line x1="${roadLeft}" y1="${planum}" x2="${roadRight}" y2="${planum}" stroke="#1e526a" stroke-dasharray="6 4" stroke-width="1.3"/>
-<line x1="${roadTopL}" y1="58" x2="${roadTopR}" y2="58" stroke="#335666" stroke-width="1.4"/>
-<path d="M${roadTopL} 52 v12 M${roadTopR} 52 v12" stroke="#335666" stroke-width="1.3"/>
-<text x="${mid}" y="43" text-anchor="middle" font-size="15" font-weight="700" fill="#244653">Skjematisk vegbredde</text>
-<text x="${mid}" y="77" text-anchor="middle" font-size="13" font-weight="700" fill="#244653">Felles sidehelning: 1:${formatNo(m)}</text>
-<text x="${mid}" y="${(yTop+yWear)/2+5}" text-anchor="middle" font-size="15" font-weight="750" fill="#2d241e">Slitelag 100 mm</text>
-<text x="${mid}" y="${(yWear+yBase)/2+6}" text-anchor="middle" font-size="20" font-weight="750" fill="#fff">Bærelag ${baseMm} mm</text>
-${extraMm>0?`<text x="${mid}" y="${(yBase+yRein)/2+5}" text-anchor="middle" font-size="15" font-weight="750" fill="#243026">Forsterkningslag ${extraMm} mm</text>`:''}
-<text x="${mid}" y="${planum+24}" text-anchor="middle" font-size="14" font-weight="700" fill="#294152">Planum</text>
-<text x="${mid}" y="${planum+65}" text-anchor="middle" font-size="21" font-weight="750" fill="#34291f">Underbygning</text>
-<text x="${mid}" y="${planum+87}" text-anchor="middle" font-size="14" fill="#34291f">Grunn / fylling</text>
-${d?`${ditchText((roadLeft+leftOuter)/2,'Grøft venstre')}${ditchText((roadRight+rightOuter)/2,'Grøft høyre')}${dim(roadLeft-inner-bw/2,roadLeft-inner-bw,roadLeft-inner)}${dim(roadRight+inner+bw/2,roadRight+inner,roadRight+inner+bw)}`:''}
-<text x="570" y="393" text-anchor="middle" font-size="13" fill="#587286">${source}. Skjematisk, ikke i målestokk.</text>
-</svg>`;
+ const L=sideInfo('left'),R=sideInfo('right'),cx=750,half=210,py=310,baseEarth=510;
+ const total=100+baseMm+extraMm,m=Number(ditchInner.value),dep=ditch?ditch.depth:0,bot=ditch?ditch.bottom:0;
+ const run=s=>s.height*1000*s.ratio+(s.type==='cut'?dep*(m+s.ratio)+bot:0);
+ const scale=Math.min(.19,145/Math.max(total,1),
+  155/Math.max(L.type==='cut'?L.height*1000+dep:0,R.type==='cut'?R.height*1000+dep:0,1),
+  170/Math.max(L.type==='fill'?L.height*1000:0,R.type==='fill'?R.height*1000:0,1),
+  440/Math.max(total*m+run(L),total*m+run(R),1));
+ const yTop=py-total*scale,yWear=yTop+100*scale,yBase=yWear+baseMm*scale;
+ const xTopL=cx-half,xTopR=cx+half,xLeft=y=>xTopL-(y-yTop)*m,xRight=y=>xTopR+(y-yTop)*m;
+ const baseL=xLeft(py),baseR=xRight(py);
+ const layer=(a,b)=>`M${xLeft(a)} ${a} H${xRight(a)} L${xRight(b)} ${b} H${xLeft(b)} Z`;
+ const pat=s=>({solidrock:'rockSolid',looserock:'rockLoose',stone:'gravel',sand:'sand',moraine:'moraine',fine:'sediment',blasted:'rockLoose',rockgravel:'gravel',sandmoraine:'moraine'})[s.material.id]||'moraine';
+ function renderSide(key,s,root){
+  const sign=key==='left'?-1:1,h=s.height*1000*scale;
+  if(s.type==='fill'){
+   const foot=root+sign*h*s.ratio,y=py+h;
+   return `<path d="M${root} ${py} L${foot} ${y} H${root} Z" fill="url(#${pat(s)})" stroke="#344959" stroke-width="2"/>
+   <path d="M${root} ${py} L${foot} ${y}" stroke="#1f4357" stroke-width="3" fill="none"/>`;
+  }
+  const yB=py+dep*scale,inX=root+sign*dep*scale*m,outX=inX+sign*bot*scale;
+  const crest=outX+sign*h*s.ratio,yCrest=yB-h,end=key==='left'?16:1484;
+  const soil=key==='left'?`M${end} ${yCrest} H${crest} L${outX} ${yB} V${baseEarth} H${end} Z`:`M${crest} ${yCrest} H${end} V${baseEarth} H${outX} V${yB} Z`;
+  return `<path d="${soil}" fill="url(#${pat(s)})" stroke="#5e6870" stroke-width="1.5"/>
+  <path d="M${crest} ${yCrest} L${outX} ${yB}" stroke="#334655" stroke-width="3" fill="none"/>
+  <path d="M${root} ${py} L${inX} ${yB} H${outX}" stroke="#157ca2" stroke-width="3.5" fill="none"/>
+  <text x="${(inX+outX)/2}" y="${yB+23}" text-anchor="middle" font-size="12" font-weight="750" fill="#185773">Grøft ${dep} mm</text>`;
+ }
+ function label(key,s){
+  const x=key==='left'?30:1050;
+  return `<rect x="${x}" y="25" width="420" height="77" rx="13" fill="#fff" stroke="#d4e1e9" opacity=".97"/>
+  <text x="${x+16}" y="55" font-size="19" font-weight="800" fill="#1c394d">${key==='left'?'VENSTRE':'HØYRE'} · ${s.type==='cut'?'SKJÆRING':'FYLLING'}</text>
+  <text x="${x+16}" y="83" font-size="15" font-weight="650" fill="#456175">${s.material.name} · ${s.material.v}:${formatNo(s.material.h)}</text>`;
+ }
+ return `<svg viewBox="0 0 1500 590" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tverrprofil med skjæring eller fylling per side">
+ <defs>
+ <pattern id="wear" width="12" height="10" patternUnits="userSpaceOnUse"><rect width="12" height="10" fill="#b99c83"/><circle cx="4" cy="3" r="1.5" fill="#806953"/></pattern>
+ <pattern id="base" width="14" height="12" patternUnits="userSpaceOnUse"><rect width="14" height="12" fill="#737e88"/><circle cx="3" cy="3" r="2" fill="#4b5b66"/><circle cx="11" cy="8" r="2" fill="#4b5b66"/></pattern>
+ <pattern id="rein" width="19" height="17" patternUnits="userSpaceOnUse"><rect width="19" height="17" fill="#b0b5ae"/><path d="M3 3l8 2-2 7-7-1z" fill="#7b837a"/></pattern>
+ <pattern id="earth" width="23" height="21" patternUnits="userSpaceOnUse"><rect width="23" height="21" fill="#ac907b"/><circle cx="4" cy="5" r="3" fill="#806754"/><circle cx="16" cy="15" r="3.4" fill="#856c5b"/></pattern>
+ <pattern id="rockSolid" width="50" height="47" patternUnits="userSpaceOnUse"><rect width="50" height="47" fill="#7e8892"/><path d="M-3 9L22 4L35 20L54 14 M0 41L20 27L44 38 M18 5L20 27" fill="none" stroke="#354552" stroke-width="2.7"/></pattern>
+ <pattern id="rockLoose" width="55" height="47" patternUnits="userSpaceOnUse"><rect width="55" height="47" fill="#a1a9ac"/><path d="M2 5l21-4 14 12-7 17-21-3z M35 29l17-13 10 20-20 10z" fill="#c1c6c8" stroke="#52636d" stroke-width="2"/></pattern>
+ <pattern id="gravel" width="43" height="36" patternUnits="userSpaceOnUse"><rect width="43" height="36" fill="#b3ab9d"/><path d="M4 6l13-4 9 11-8 10-15-4z M28 22l9-5 9 12-13 9z" fill="#7c8078" stroke="#5e6867"/></pattern>
+ <pattern id="sand" width="15" height="13" patternUnits="userSpaceOnUse"><rect width="15" height="13" fill="#dfcba7"/><circle cx="3" cy="4" r="1.2" fill="#9a7a57"/><circle cx="11" cy="9" r="1.1" fill="#b49b78"/></pattern>
+ <pattern id="moraine" width="34" height="28" patternUnits="userSpaceOnUse"><rect width="34" height="28" fill="#b39c85"/><circle cx="6" cy="7" r="3" fill="#7f736a"/><path d="M17 5l8 1 3 8-12 3z" fill="#877b6e"/><circle cx="23" cy="24" r="2.4" fill="#dccbb5"/></pattern>
+ <pattern id="sediment" width="34" height="26" patternUnits="userSpaceOnUse"><rect width="34" height="26" fill="#b9aa9c"/><path d="M0 8H34 M0 15H34 M0 22H34" stroke="#84766c" stroke-width="1"/></pattern>
+ </defs>
+ <rect x="20" y="${py}" width="1460" height="${baseEarth-py}" fill="url(#earth)" opacity=".35"/>
+ <rect x="${baseL}" y="${py}" width="${baseR-baseL}" height="${baseEarth-py}" fill="url(#earth)" stroke="#705b4c" stroke-width="1.5"/>
+ ${renderSide('left',L,baseL)}${renderSide('right',R,baseR)}
+ ${extraMm>0?`<path d="${layer(yBase,py)}" fill="url(#rein)" stroke="#65736e" stroke-width="1.5"/>`:''}
+ <path d="${layer(yWear,yBase)}" fill="url(#base)" stroke="#4d5960" stroke-width="1.5"/>
+ <path d="${layer(yTop,yWear)}" fill="url(#wear)" stroke="#816a58" stroke-width="1.5"/>
+ ${synt==='fiberduk'||synt==='both'?`<path d="M${baseL} ${py-2} H${baseR}" stroke="#13aad5" stroke-width="3"/>`:''}
+ ${synt==='geonett'||synt==='both'?`<path d="M${baseL} ${py-6} H${baseR}" stroke="#986fc0" stroke-width="3" stroke-dasharray="9 5"/>`:''}
+ <path d="M${xTopL} ${yTop} H${xTopR} L${baseR} ${py} H${baseL} Z" stroke="#243b4c" stroke-width="2.6" fill="none"/>
+ <text x="${cx}" y="135" text-anchor="middle" font-size="17" font-weight="750" fill="#173044">Overbygning · prinsippsnitt</text>
+ <text x="${cx}" y="${(yTop+yWear)/2+4}" text-anchor="middle" font-size="13" font-weight="700" fill="#31291f">Slitelag 100 mm</text>
+ <text x="${cx}" y="${(yWear+yBase)/2+6}" text-anchor="middle" font-size="17" font-weight="750" fill="#fff">Bærelag ${baseMm} mm</text>
+ ${extraMm>0?`<text x="${cx}" y="${(yBase+py)/2+5}" text-anchor="middle" font-size="14" font-weight="700" fill="#293629">Forsterkningslag ${extraMm} mm</text>`:''}
+ <text x="${cx}" y="${py+27}" text-anchor="middle" font-size="14" font-weight="700" fill="#284558">Planum</text>
+ <text x="${cx}" y="${py+96}" text-anchor="middle" font-size="22" font-weight="800" fill="#433327">Underbygning</text>
+ ${label('left',L)}${label('right',R)}
+ <text x="${cx}" y="552" text-anchor="middle" font-size="14" fill="#597487">Prinsippskisse – ikke i målestokk. Stabilitet og terreng må kontrolleres.</text>
+ </svg>`;
 }
 function update(){
-  const group=soil.value, b=+bearing.value, s=+wear.value;
-  const baseDm=TABLE[group][b][s];
-  const baseMm=baseDm*10;
-  const raw=Number(reinforcement.value);
-  const extraMm=(reinforcement.value.trim()!=='' && Number.isFinite(raw) && raw>=0)?raw:0;
-  const totalMm=100+baseMm+extraMm;
-  const a=ADVICE[group];
-  const manual=a.mm!==null && extraMm!==a.mm;
-  const synt=geosynthetic.value;
-  const slope=selectedSlope();
-  const slopeText=slope.v+':'+formatNo(slope.h);
-  const degrees=Math.atan(slope.v/slope.h)*180/Math.PI;
-  const slopePercent=100*slope.v/slope.h;
-  const highFill=slopeType.value==='fill' && fillHeight.value.trim()!=='' && Number(fillHeight.value)>5;
-  const highFines=slopeType.value==='fill' && slope.id==='sandmoraine';
-  const deepClay=(slope.id==='fine');
-  let slopeAdvice='Største skråningshelning etter Normaler for landbruksveier, pkt. 6.2.2: '+slopeText+
-    ' ('+formatNo(slopePercent.toFixed(1))+' % / '+formatNo(degrees.toFixed(1))+'°). '+
-    'Helning oppgis her som vertikal : horisontal.';
-  if(slopeType.value==='fill')slopeAdvice+=' Ved fylling skal skråningen gradvis slakes ut til 1:4 etter 5 m høydeforskjell fra planum.';
-  if(highFines)slopeAdvice+=' Ved høyt finstoffinnhold bør fyllingen gjøres slakere.';
-  if(deepClay)slopeAdvice+=' Ved dyp leire (>2 m) må det utvises særskilt aktsomhet.';
-  if(highFill)slopeAdvice+=' Ved høydeforskjell over 5 m må fyllingsskråningen utformes gradvis slakere til 1:4; vist standardhelning kan ikke brukes uendret hele veien.';
-  $('slopeAdvice').textContent=slopeAdvice;
-  $('slopeSummary').textContent='Skråningshelning '+(slopeType.value==='fill'?'fylling':'skjæring')+' ('+slope.name+'): '+slopeText+'. Valgt skråningshelning for fylling/skjæring inngår ikke i prinsippsnittet av grøft og overbygning.';
-  updateDitch();
-  $('reinforcementAdvice').textContent='Veiledende vurdering: '+a.text+(manual?' Prosjektert verdi avviker fra standardforslaget.':'')+(group==='7b'?' Angi en prosjektert tykkelse og kontroller særskilt.':'');
-  if(group==='7b'&&!reinforcement.value.trim()) $('reinforcementAdvice').textContent+=' Sum er foreløpig og inkluderer ikke forsterkningslag.';
-
-  $('wearout').textContent='100 mm';
-  $('baseout').textContent=baseMm+' mm';
-  $('reinforceout').textContent=extraMm+' mm';
-  $('totalout').textContent=totalMm+' mm';
-
-  $('diagram').innerHTML=renderDiagram(baseMm, extraMm, ditchDraft(), synt);
-  $('diagram').setAttribute('data-geosynthetic',synt);
-  $('diagram').querySelector('svg')?.setAttribute('aria-description','Geosyntet: '+geosynthetic.options[geosynthetic.selectedIndex].text);
-
-  $('summary1').textContent=`Veiklasse 3 med bæreevnegruppe ${group} – ${SOIL_TEXT[group]}.`;
-  $('summary2').textContent=`Valgt materialkvalitet: bærelag b-${'ABCD'[b]} og slitelag s-${'AB'[s]}.`;
-  $('summary3').textContent=`Beregnet bærelagstykkelse fra tabell 3.2: ${baseMm} mm. Slitelag: 100 mm.`;
-  $('summary4').textContent=`Sum valgte lag: ${totalMm} mm. Forsterkningslag: ${extraMm} mm. Geosyntet: ${geosynthetic.options[geosynthetic.selectedIndex].text}. Skråningshelning (${slopeType.value==='fill'?'fylling':'skjæring'}, ${slope.name}): ${slopeText}.`;
-
-  $('warningBox').innerHTML = '<strong>Faglig kontroll:</strong> Anbefaling om forsterkningslag er veiledende, ikke automatisk dimensjonering. Kontroller normtekst og stedlige grunnforhold før bruk i prosjektering. Fiberduk/geonett inngår ikke som en beregnet reduksjon av tykkelsen.';
+ const group=soil.value,b=Number(bearing.value),w=Number(wear.value),base=TABLE[group][b][w]*10;
+ const raw=Number(reinforcement.value),extra=(reinforcement.value.trim()!==''&&Number.isFinite(raw)&&raw>=0)?raw:0;
+ const L=sideInfo('left'),R=sideInfo('right'),synt=geosynthetic.value,a=ADVICE[group],total=100+base+extra;
+ const desc=x=>(x.type==='cut'?'Skjæring':'Fylling')+' '+x.material.name+' ('+x.material.v+':'+formatNo(x.material.h)+')';
+ $('leftHelp').textContent=desc(L)+(L.type==='cut'?' · med grøft':' · uten grøft');
+ $('rightHelp').textContent=desc(R)+(R.type==='cut'?' · med grøft':' · uten grøft');
+ const cautions=[];
+ if(!L.valid||!R.valid)cautions.push('Høydeforskjell må være 0,1–8 m; skissen bruker 1 m ved ugyldig verdi.');
+ if([L,R].some(x=>x.type==='fill'&&x.height>5))cautions.push('Over 5 m fyllingshøyde må skråningen gradvis slakes ut mot 1:4.');
+ if([L,R].some(x=>x.material.id==='fine'))cautions.push('Leire krever egen stabilitetsvurdering.');
+ if([L,R].some(x=>x.type==='fill'&&x.material.id==='sandmoraine'))cautions.push('Høyt finstoffinnhold krever slakere fyllingsskråning.');
+ $('slopeAdvice').textContent='Venstre: '+desc(L)+'. Høyre: '+desc(R)+'. '+cautions.join(' ');
+ $('slopeSummary').textContent='Venstre: '+desc(L)+(L.type==='cut'?' med grøft':' uten grøft')+'. Høyre: '+desc(R)+(R.type==='cut'?' med grøft':' uten grøft')+'.';
+ updateDitch();
+ $('reinforcementAdvice').textContent='Veiledende vurdering: '+a.text+(a.mm!==null&&extra!==a.mm?' Prosjektert verdi avviker fra forslaget.':'');
+ $('wearout').textContent='100 mm';$('baseout').textContent=base+' mm';
+ $('reinforceout').textContent=extra+' mm';$('totalout').textContent=total+' mm';
+ $('diagram').innerHTML=renderDiagram(base,extra,ditchDraft(),synt);
+ $('diagram').setAttribute('data-geosynthetic',synt);
+ $('diagram').querySelector('svg')?.setAttribute('aria-description',desc(L)+'. '+desc(R));
+ $('summary1').textContent='Veiklasse 3. Bæreevnegruppe '+group+' – '+SOIL_TEXT[group]+'.';
+ $('summary2').textContent='Bærelag b-'+'ABCD'[b]+' og slitelag s-'+'AB'[w]+'.';
+ $('summary3').textContent='Bærelag '+base+' mm, slitelag 100 mm. Sum '+total+' mm.';
+ $('summary4').textContent='Venstre: '+desc(L)+'. Høyre: '+desc(R)+'.';
+ $('warningBox').innerHTML='<strong>Faglig kontroll:</strong> Tabellhelningene er ikke stabilitetsdokumentasjon. Kontroller erosjon, vannmengde og lokale grunnforhold. Skissen er ikke målfast.';
 }
-
-['change','input'].forEach(evt=>{
-  soil.addEventListener(evt,update);
-  bearing.addEventListener(evt,update);
-  wear.addEventListener(evt,update);
-  reinforcement.addEventListener(evt,update);
-  geosynthetic.addEventListener(evt,update);
-});
-soil.addEventListener('change',applyAdvice);
-slopeType.addEventListener('change',resetSlopeMaterials);
-slopeMaterial.addEventListener('change',update);
-fillHeight.addEventListener('input',update);
-ditchCondition.addEventListener('change',applyDitchCondition);
-ditchDepth.addEventListener('input',update);
-ditchBottom.addEventListener('input',update);
-ditchInner.addEventListener('change',update);
-ditchOuter.addEventListener('change',update);
-$('print').addEventListener('click',()=>window.print());
+['change','input'].forEach(e=>{soil.addEventListener(e,update);bearing.addEventListener(e,update);wear.addEventListener(e,update);reinforcement.addEventListener(e,update);geosynthetic.addEventListener(e,update);});
+for(const key of ['left','right']){$(key+'Type').addEventListener('change',()=>populateSide(key));$(key+'Material').addEventListener('change',update);$(key+'Height').addEventListener('input',update);}
+ditchCondition.addEventListener('change',applyDitchCondition);ditchDepth.addEventListener('input',update);ditchBottom.addEventListener('input',update);ditchInner.addEventListener('change',update);$('print').addEventListener('click',()=>window.print());
 $('copy').addEventListener('click',async()=>{
-  const group=soil.value, b=+bearing.value, s=+wear.value;
-  const baseMm=TABLE[group][b][s]*10;
-  const raw=Number(reinforcement.value);
-  const extraMm=(reinforcement.value.trim()!=='' && Number.isFinite(raw) && raw>=0)?raw:0;
-  const totalMm=100+baseMm+extraMm;
-  const report=`Landbruksvei · Overbygningskalkulator\n`+
-    `Utviklet av Nikolai Medvedev\n\n`+
-    `Veiklasse: 3\n`+
-    `Bæreevnegruppe i underbygning: ${group} – ${SOIL_TEXT[group]}\n`+
-    `Bærelag: b-${'ABCD'[b]}, ${baseMm} mm\n`+
-    `Slitelag: s-${'AB'[s]}, 100 mm\n`+
-    `Forsterkningslag (valgt): ${extraMm} mm\n`+
-    `Geosyntet: ${geosynthetic.options[geosynthetic.selectedIndex].text}\n`+
-    `Skråningstype: ${slopeType.value==='fill'?'Fylling':'Skjæring'}\n`+
-    `Skråningsmateriale: ${selectedSlope().name}\n`+
-    `Største skråningshelning: ${selectedSlope().v}:${formatNo(selectedSlope().h)}\n`+
-    (ditchDraft() ? `Veigrøft: ${ditchCondition.value==='water'?'Høy grunnvannstand / tilsig':'Normal drenering'}, dybde ${ditchDraft().depth} mm under planum, bunnbredde ${ditchDraft().bottom} mm, innerhelning 1:${formatNo(ditchDraft().inner)}, ytterhelning ${ditchDraft().outer.v}:${formatNo(ditchDraft().outer.h)}, grøftebredde ved planum ${fmt2(ditchDraft().topM)} m, areal under planum ${fmt2(ditchDraft().area)} m².\n` : 'Veigrøft: Ugyldige måldata.\n')+
-    (slopeType.value==='fill' ? `Fyllingshøyde (oppgitt): ${fillHeight.value.trim()||'Ikke oppgitt'} m\n` : '')+
-    `Sum overbygning: ${totalMm} mm\n`+
-    `Kilde: Normaler for landbruksveier, versjon 2, mars 2026, tabell 3.2 og pkt. 6.2.2.\n`+
-    `Forutsetter faglig kontroll.`;
-  try{
-    await navigator.clipboard.writeText(report);
-    $('copy').textContent='Kopiert!';
-    setTimeout(()=>$('copy').textContent='Kopier beregning',1800);
-  }catch(e){
-    alert('Kunne ikke kopiere til utklippstavlen. Bruk Skriv ut / lagre som PDF.');
-  }
+ const L=sideInfo('left'),R=sideInfo('right'),d=ditchDraft();
+ const base=TABLE[soil.value][Number(bearing.value)][Number(wear.value)]*10,extra=Math.max(0,Number(reinforcement.value)||0);
+ const describe=(label,x)=>label+': '+(x.type==='cut'?'Skjæring':'Fylling')+', '+x.material.name+' ('+x.material.v+':'+formatNo(x.material.h)+'), høydeforskjell '+x.height+' m'+(x.type==='cut'?', med grøft':', uten grøft');
+ const items=['Landbruksvei Overbygningskalkulator','Utviklet av Nikolai Medvedev','Veiklasse 3, bæreevnegruppe '+soil.value,'Slitelag 100 mm','Bærelag '+base+' mm','Forsterkningslag '+extra+' mm','Sum '+(100+base+extra)+' mm',describe('Venstre',L),describe('Høyre',R)];
+ if(d)items.push('Grøfter i skjæring: dybde '+d.depth+' mm, bunnbredde '+d.bottom+' mm');
+ items.push('Kilde: Normaler for landbruksveier, versjon 2 mars 2026. Forutsetter faglig kontroll.');
+ try{await navigator.clipboard.writeText(items.join('\n'));$('copy').textContent='Kopiert!';setTimeout(()=>$('copy').textContent='Kopier beregning',1800);}
+ catch(e){alert('Kunne ikke kopiere. Bruk Skriv ut / PDF.');}
 });
-initDitchMaterials();
-resetSlopeMaterials();
+populateSide('left');
+populateSide('right');
 applyAdvice();
 </script>
 </body>
