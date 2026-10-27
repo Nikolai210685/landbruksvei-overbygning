@@ -147,6 +147,29 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
     </div>
     <div class="note" id="slopeAdvice" aria-live="polite"></div>
 
+    <h3>3. Veigrøft</h3>
+    <label for="ditchCondition">Dreneringsforhold</label>
+    <select id="ditchCondition">
+      <option value="normal">Normal drenering – min. 200 mm under planum</option>
+      <option value="water">Høy grunnvannstand / tilsig fra sidekjæring – min. 350 mm</option>
+    </select>
+    <label for="ditchDepth">Grøftedybde under planum (mm)</label>
+    <input id="ditchDepth" type="number" min="0" max="5000" step="10" value="200">
+    <label for="ditchBottom">Grøftas bunnbredde (mm)</label>
+    <input id="ditchBottom" type="number" min="0" max="5000" step="10" value="300">
+    <label for="ditchInner">Grøfteskråning mot veg (prosjektert V:H)</label>
+    <select id="ditchInner">
+      <option value="1">1:1</option>
+      <option value="1.5" selected>1:1,5</option>
+      <option value="2">1:2</option>
+      <option value="2.5">1:2,5</option>
+      <option value="3">1:3</option>
+    </select>
+    <label for="ditchOuter">Grøfteskråning mot skjæring (jordart)</label>
+    <select id="ditchOuter"></select>
+    <div class="muted">Ytre skråning hentes fra skjæringstabellen (4.3.2). Indre grøfteskråning velges av prosjekterende, ikke fra en generell grøftetabell. Bredden regnes ved planumnivå; terreng og grøft over dette nivået krever egen vurdering.</div>
+    <div class="note" id="ditchAdvice" aria-live="polite"></div>
+
     <div class="note">
       <strong>Tabellgrunnlag:</strong> Veiklasse 3 er aktivert og kontrollert mot tabell 3.2. Slitelag er satt til 100 mm i henhold til normen. Forsterkningslag prosjekteres ved behov.
     </div>
@@ -176,6 +199,21 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
       </div>
       <div id="slopeDiagram"></div>
       <p class="muted">Separat prinsippskisse for fyllings-/skjæringsskråning. Overbygningens lagtykkelser endres ikke når skråningsmaterialet endres.</p>
+    </div>
+
+    <div class="svg-wrap">
+      <div class="svg-title">
+        <strong>Veigrøft – mål fra planum</strong>
+        <span class="badge">Prinsippsnitt</span>
+      </div>
+      <div id="ditchDiagram"></div>
+      <div class="results" id="ditchMetrics" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+        <div class="metric"><small>Grøftedybde under planum</small><strong id="ditchDepthOut">200 mm</strong></div>
+        <div class="metric"><small>Bunnbredde</small><strong id="ditchBottomOut">300 mm</strong></div>
+        <div class="metric"><small>Grøftebredde ved planum</small><strong id="ditchTopOut">1,00 m</strong></div>
+        <div class="metric"><small>Tverrsnittsareal under planum</small><strong id="ditchAreaOut">0,13 m²</strong></div>
+      </div>
+      <p class="muted">Bredde ved planum = bunnbredde + dybde × (horisontalt skråningsforhold mot veg + mot skjæring). Tegningen er en prinsippskisse, ikke en masseberegning eller hydraulisk dimensjonering.</p>
     </div>
 
     <div class="legend">
@@ -284,6 +322,78 @@ function slopeSvg(type,entry){
  '<text x="214" y="188" font-size="13" text-anchor="middle" fill="#526c7d">Illustrasjon – ikke i målestokk</text>'+
  '</svg>';
 }
+const ditchCondition=$('ditchCondition'), ditchDepth=$('ditchDepth'), ditchBottom=$('ditchBottom'),ditchInner=$('ditchInner'),ditchOuter=$('ditchOuter');
+function initDitchMaterials(){
+ ditchOuter.innerHTML=SLOPE_DATA.cut.map(x=>'<option value="'+x.id+'">'+x.name+' ('+x.v+':'+formatNo(x.h)+')</option>').join('');
+ ditchOuter.value='sand';
+}
+function ditchDraft(){
+ const depth=Number(ditchDepth.value),bottom=Number(ditchBottom.value);
+ const inner=Number(ditchInner.value);
+ const outer=SLOPE_DATA.cut.find(x=>x.id===ditchOuter.value)||SLOPE_DATA.cut[3];
+ const out=outer.h/outer.v;
+ if(ditchDepth.value.trim()===''||ditchBottom.value.trim()===''||!Number.isFinite(depth)||!Number.isFinite(bottom)||depth<0||bottom<0||depth>5000||bottom>5000) return null;
+ const depthM=depth/1000,bottomM=bottom/1000;
+ const innerM=depthM*inner,outerM=depthM*out,topM=bottomM+innerM+outerM;
+ const area=depthM*(bottomM+topM)/2;
+ return {depth,bottom,depthM,bottomM,inner,outer,out,innerM,outerM,topM,area};
+}
+function fmt2(x){return x.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function renderDitch(d){
+ const spanWidth=d.topM;
+ const scale=Math.min(150/Math.max(d.depthM,.01),630/Math.max(spanWidth,.01),550);
+ const h=d.depthM*scale,bi=d.bottomM*scale,li=d.innerM*scale,lo=d.outerM*scale;
+ const left=390-spanWidth*scale/2;
+ const leftBase=left+li,rightBase=leftBase+bi,right=rightBase+lo;
+ const y=112,base=y+h,soil=base+38,viewHeight=Math.max(285,soil+45);
+ const textY=Math.max(195,base+40);
+ return '<svg viewBox="0 0 800 '+viewHeight+'" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Veigrøft med dybde målt fra planum, bunnbredde og grøfteskråninger">'+
+ '<defs><pattern id="ditchSoil" width="16" height="16" patternUnits="userSpaceOnUse"><rect width="16" height="16" fill="#ac917b"/><circle cx="4" cy="5" r="2.5" fill="#7d6655"/><circle cx="12" cy="12" r="2.5" fill="#766252"/></pattern></defs>'+
+ '<path d="M26 '+y+' H'+left+' L'+leftBase+' '+base+' V'+soil+' H26Z" fill="url(#ditchSoil)" stroke="#685749" stroke-width="1.3"/>'+
+ '<path d="M'+right+' '+y+' H768 V'+soil+' H'+rightBase+' V'+base+'Z" fill="url(#ditchSoil)" stroke="#685749" stroke-width="1.3"/>'+
+ '<path d="M'+left+' '+y+' L'+leftBase+' '+base+' H'+rightBase+' L'+right+' '+y+'" fill="none" stroke="#0d6288" stroke-width="3.5" stroke-linejoin="round"/>'+
+ '<path d="M26 '+y+' H768" stroke="#2d677e" stroke-width="1.8" stroke-dasharray="6,5" opacity=".85"/>'+
+ '<text x="48" y="'+(y-10)+'" font-size="15" font-weight="750" fill="#173044">Planum</text>'+
+ '<line x1="'+leftBase+'" y1="'+(base+16)+'" x2="'+rightBase+'" y2="'+(base+16)+'" stroke="#1d4b62" stroke-width="1.4"/>'+
+ '<path d="M'+leftBase+' '+(base+9)+' v14 M'+rightBase+' '+(base+9)+' v14" stroke="#1d4b62" stroke-width="1.4"/>'+
+ '<text x="'+((leftBase+rightBase)/2)+'" y="'+(base+31)+'" text-anchor="middle" font-size="15" font-weight="750" fill="#173044">'+d.bottom+' mm</text>'+
+ '<line x1="724" x2="724" y1="'+y+'" y2="'+base+'" stroke="#1d4b62" stroke-width="1.4"/>'+
+ '<path d="M718 '+y+' H731 M718 '+base+' H731" stroke="#1d4b62" stroke-width="1.4"/>'+
+ '<text x="735" y="'+(y+h/2)+'" font-size="13" font-weight="750" fill="#173044">'+d.depth+' mm</text>'+
+ '<line x1="'+left+'" y1="60" x2="'+right+'" y2="60" stroke="#1d4b62" stroke-width="1.5"/>'+
+ '<path d="M'+left+' 53 v14 M'+right+' 53 v14" stroke="#1d4b62" stroke-width="1.4"/>'+
+ '<text x="'+((left+right)/2)+'" y="49" text-anchor="middle" font-size="15" font-weight="750" fill="#173044">Grøftebredde ved planum '+fmt2(d.topM)+' m</text>'+
+ '<text x="110" y="'+(Math.max(180,base+33))+'" font-size="15" font-weight="750" fill="#173044">Mot veg: 1:'+formatNo(d.inner)+'</text>'+
+ '<text x="495" y="'+(Math.max(180,base+33))+'" font-size="15" font-weight="750" fill="#173044">Mot skjæring: '+d.outer.v+':'+formatNo(d.outer.h)+'</text>'+
+ '<text x="108" y="'+(Math.max(201,base+52))+'" font-size="12" fill="#526978">Horisontal utbredelse: '+fmt2(d.innerM)+' m</text>'+
+ '<text x="495" y="'+(Math.max(201,base+52))+'" font-size="12" fill="#526978">Horisontal utbredelse: '+fmt2(d.outerM)+' m</text>'+
+ '</svg>';
+}
+function applyDitchCondition(){
+ if(ditchCondition.value==='water'){ditchDepth.value='350';ditchBottom.value='500';}
+ else {ditchDepth.value='200';ditchBottom.value='300';}
+ update();
+}
+function updateDitch(){
+ const d=ditchDraft();
+ if(!d){
+ $('ditchDiagram').innerHTML='<p>Angi gyldige dimensjoner mellom 0 og 5000 mm.</p>';
+ $('ditchDepthOut').textContent='–';$('ditchBottomOut').textContent='–';$('ditchTopOut').textContent='–';$('ditchAreaOut').textContent='–';
+ $('ditchAdvice').textContent='Ugyldige grøftemål. Kontroller verdiene.'; return;
+ }
+ const minDepth=ditchCondition.value==='water'?350:200;
+ const minBottom=ditchCondition.value==='water'?500:300;
+ const note=d.depth<minDepth?'Grøftedybden er mindre enn normens minimum for valgt dreneringsforhold. ':'';
+ const note2=d.bottom<minBottom?(ditchCondition.value==='water'?'Bunnbredden er under anbefalte 500 mm ved høy grunnvannstand / tilsig. ':'Bunnbredden er under normens minimum på 300 mm. '):'';
+ let info=note+note2;
+ if(!info)info='Valgte grøftemål tilfredsstiller de oppgitte minstekravene til dybde og bunnbredde for situasjonen. ';
+ if(soil.value==='7b')info+='For torvmark og myr bør grøfter i størst mulig grad unngås (pkt. 3.3.10). ';
+ info+='Oppgitte grøfteskråninger og bredde ved planum forutsetter rette, konstante sideflater. Vannmengde, erosjon, terreng og stabilitet må vurderes separat.';
+ $('ditchAdvice').textContent=info;
+ $('ditchDepthOut').textContent=d.depth+' mm';$('ditchBottomOut').textContent=d.bottom+' mm';
+ $('ditchTopOut').textContent=fmt2(d.topM)+' m';$('ditchAreaOut').textContent=fmt2(d.area)+' m²';
+ $('ditchDiagram').innerHTML=renderDitch(d);
+}
 const soil=$('soil'), bearing=$('bearing'), wear=$('wear'), reinforcement=$('reinforcement'), geosynthetic=$('geosynthetic');
 const ADVICE={
  '1':{mm:0,text:'Normalt ikke behov for eget forsterkningslag.'},
@@ -366,6 +476,7 @@ function update(){
   $('slopeAdvice').textContent=slopeAdvice;
   $('slopeRatio').textContent=slopeText;
   $('slopeDiagram').innerHTML=slopeSvg(slopeType.value,slope);
+  updateDitch();
   $('reinforcementAdvice').textContent='Veiledende vurdering: '+a.text+(manual?' Prosjektert verdi avviker fra standardforslaget.':'')+(group==='7b'?' Angi en prosjektert tykkelse og kontroller særskilt.':'');
   if(group==='7b'&&!reinforcement.value.trim()) $('reinforcementAdvice').textContent+=' Sum er foreløpig og inkluderer ikke forsterkningslag.';
 
@@ -397,6 +508,11 @@ soil.addEventListener('change',applyAdvice);
 slopeType.addEventListener('change',resetSlopeMaterials);
 slopeMaterial.addEventListener('change',update);
 fillHeight.addEventListener('input',update);
+ditchCondition.addEventListener('change',applyDitchCondition);
+ditchDepth.addEventListener('input',updateDitch);
+ditchBottom.addEventListener('input',updateDitch);
+ditchInner.addEventListener('change',updateDitch);
+ditchOuter.addEventListener('change',updateDitch);
 $('print').addEventListener('click',()=>window.print());
 $('copy').addEventListener('click',async()=>{
   const group=soil.value, b=+bearing.value, s=+wear.value;
@@ -415,6 +531,7 @@ $('copy').addEventListener('click',async()=>{
     `Skråningstype: ${slopeType.value==='fill'?'Fylling':'Skjæring'}\n`+
     `Skråningsmateriale: ${selectedSlope().name}\n`+
     `Største skråningshelning: ${selectedSlope().v}:${formatNo(selectedSlope().h)}\n`+
+    (ditchDraft() ? `Veigrøft: ${ditchCondition.value==='water'?'Høy grunnvannstand / tilsig':'Normal drenering'}, dybde ${ditchDraft().depth} mm under planum, bunnbredde ${ditchDraft().bottom} mm, innerhelning 1:${formatNo(ditchDraft().inner)}, ytterhelning ${ditchDraft().outer.v}:${formatNo(ditchDraft().outer.h)}, grøftebredde ved planum ${fmt2(ditchDraft().topM)} m, areal under planum ${fmt2(ditchDraft().area)} m².\n` : 'Veigrøft: Ugyldige måldata.\n')+
     (slopeType.value==='fill' ? `Fyllingshøyde (oppgitt): ${fillHeight.value.trim()||'Ikke oppgitt'} m\n` : '')+
     `Sum overbygning: ${totalMm} mm\n`+
     `Kilde: Normaler for landbruksveier, versjon 2, mars 2026, tabell 3.2 og pkt. 6.2.2.\n`+
@@ -427,6 +544,7 @@ $('copy').addEventListener('click',async()=>{
     alert('Kunne ikke kopiere til utklippstavlen. Bruk Skriv ut / lagre som PDF.');
   }
 });
+initDitchMaterials();
 resetSlopeMaterials();
 applyAdvice();
 </script>
