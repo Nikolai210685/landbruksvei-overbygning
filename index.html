@@ -388,7 +388,14 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
   <path d="M${crest} ${yCrest} L${outside} ${yB}" stroke="#334655" stroke-width="3" fill="none"/>
   <path d="M${outside} ${yB} L${deepContact} ${baseEarth}" stroke="#344a57" stroke-width="2" fill="none"/>
   <path d="M${root} ${py} L${inside} ${yB} H${outside}" stroke="#157ca2" stroke-width="3.5" fill="none" stroke-linejoin="round"/>
-  <text x="${(inside+outside)/2}" y="${yB+23}" text-anchor="middle" font-size="12" font-weight="750" fill="#185773">Grøft ${dep} mm</text>`;
+  <g data-ditch-depth="${key}" aria-label="Grøftedybde ${fmt2(dep/1000)} meter under planum">
+    <line x1="${(inside+outside)/2}" y1="${py}" x2="${(inside+outside)/2}" y2="${yB}" stroke="#155e83" stroke-width="1.8"/>
+    <path d="M${(inside+outside)/2-7} ${py} h14 M${(inside+outside)/2-7} ${yB} h14" fill="none" stroke="#155e83" stroke-width="1.8"/>
+    <path d="M${(inside+outside)/2} ${yB-2} L${(inside+outside)/2+((key==='left')?-32:32)} 212" fill="none" stroke="#155e83" stroke-width="1.2" stroke-dasharray="4 4" opacity=".85"/>
+    <rect x="${Math.max(15,Math.min(1205,(inside+outside)/2-140))}" y="166" width="280" height="43" rx="9" fill="#fff" stroke="#bed4e0" opacity=".97"/>
+    <text x="${Math.max(15,Math.min(1205,(inside+outside)/2-140))+140}" y="184" text-anchor="middle" font-size="16" font-weight="800" fill="#174b69">Grøftedybde ${fmt2(dep/1000)} m</text>
+    <text x="${Math.max(15,Math.min(1205,(inside+outside)/2-140))+140}" y="200" text-anchor="middle" font-size="14" font-weight="650" fill="#174b69">under planum</text>
+  </g>`;
  }
  // Under each ditch, the subgrade occupies the space from the ditch bottom
  // down to the bedrock contact. Use fill material when a fill bank exists,
