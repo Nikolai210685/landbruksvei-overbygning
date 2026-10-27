@@ -376,7 +376,11 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
   const rockMass=key==='left'
     ? `M${edge} ${yCrest} H${crest} L${outside} ${yB} L${deepContact} ${baseEarth} H${edge} Z`
     : `M${crest} ${yCrest} H${edge} V${baseEarth} H${deepContact} L${outside} ${yB} Z`;
+  // Maintain an empty ditch excavation above the floor and fylling underneath it.
+  const cutWallAtPlanum=outside+(crest-outside)*(yB-py)/(yB-yCrest);
+  const ditchExcavation=`M${root} ${py} L${inside} ${yB} H${outside} L${cutWallAtPlanum} ${py} Z`;
   return `<path data-ground="${key}-cut" d="${rockMass}" fill="url(#${pat(side)})" stroke="#59636b" stroke-width="1.4"/>
+  <path data-ditch-void="${key}" d="${ditchExcavation}" fill="#f5f9fb" stroke="none"/>
   <path d="M${crest} ${yCrest} L${outside} ${yB}" stroke="#334655" stroke-width="3" fill="none"/>
   <path d="M${outside} ${yB} L${deepContact} ${baseEarth}" stroke="#344a57" stroke-width="2" fill="none"/>
   <path d="M${root} ${py} L${inside} ${yB} H${outside}" stroke="#157ca2" stroke-width="3.5" fill="none" stroke-linejoin="round"/>
@@ -401,20 +405,20 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  <pattern id="moraine" width="34" height="28" patternUnits="userSpaceOnUse"><rect width="34" height="28" fill="#b39c85"/><circle cx="6" cy="7" r="3" fill="#7f736a"/><path d="M17 5l8 1 3 8-12 3z" fill="#877b6e"/><circle cx="23" cy="24" r="2.4" fill="#dccbb5"/></pattern>
  <pattern id="sediment" width="34" height="26" patternUnits="userSpaceOnUse"><rect width="34" height="26" fill="#b9aa9c"/><path d="M0 8H34 M0 15H34 M0 22H34" stroke="#84766c" stroke-width="1"/></pattern>
  </defs>
- <!-- No global soil overlay. Where a fill is specified, use its actual material
-      throughout the road foundation until rock geology overlaps it. -->
+ <!-- Geological background uses fylling texture also BELOW the ditch.
+      Cut rock is drawn on top and the ditch cavity is cleared afterwards. -->
  ${L.type==='fill'&&R.type==='fill'
-  ? `<rect data-ground="left-foundation" x="${baseL}" y="${py}" width="${cx-baseL}" height="${baseEarth-py}" fill="url(#${pat(L)})"/>
-  <rect data-ground="right-foundation" x="${cx}" y="${py}" width="${baseR-cx}" height="${baseEarth-py}" fill="url(#${pat(R)})"/>`
+  ? `<rect data-ground="left-foundation" x="20" y="${py}" width="${cx-20}" height="${baseEarth-py}" fill="url(#${pat(L)})"/>
+  <rect data-ground="right-foundation" x="${cx}" y="${py}" width="${1480-cx}" height="${baseEarth-py}" fill="url(#${pat(R)})"/>`
   : L.type==='fill'||R.type==='fill'
-    ? `<rect data-ground="fill-foundation" x="${baseL}" y="${py}" width="${baseR-baseL}" height="${baseEarth-py}" fill="url(#${pat(L.type==='fill'?L:R)})"/>`
-    : `<rect data-ground="existing-foundation" x="${baseL}" y="${py}" width="${baseR-baseL}" height="${baseEarth-py}" fill="url(#earth)"/>`}
+    ? `<rect data-ground="fill-foundation" x="20" y="${py}" width="1460" height="${baseEarth-py}" fill="url(#${pat(L.type==='fill'?L:R)})"/>`
+    : `<rect data-ground="existing-foundation" x="20" y="${py}" width="1460" height="${baseEarth-py}" fill="url(#earth)"/>`}
  <!-- Fill masses extend across the road foundation and down to the section datum. -->
  ${renderFilling('left',L,baseL)}${renderFilling('right',R,baseR)}
  <!-- Cut geology overlays fill where bedrock continues diagonally under the road. -->
  ${renderRockCut('left',L,baseL)}${renderRockCut('right',R,baseR)}
  <line x1="20" y1="${baseEarth}" x2="1480" y2="${baseEarth}" stroke="#7a8c99" stroke-width="1.4" opacity=".75"/>
- ${extraMm>0?`<path d="${layer(yBase,py)}" fill="url(#rein)" stroke="#65736e" stroke-width="1.5"/>`:''}
+ ${extraMm>0?`<path data-layer="forsterkningslag" d="${layer(yBase,py)}" fill="url(#rein)" stroke="#4c6556" stroke-width="2.3"/>`:''}
  <path d="${layer(yWear,yBase)}" fill="url(#base)" stroke="#4d5960" stroke-width="1.5"/>
  <path d="${layer(yTop,yWear)}" fill="url(#wear)" stroke="#816a58" stroke-width="1.5"/>
  ${synt==='fiberduk'||synt==='both'?`<path d="M${baseL} ${py-2} H${baseR}" stroke="#13aad5" stroke-width="3"/>`:''}
@@ -423,7 +427,7 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  <text x="${cx}" y="135" text-anchor="middle" font-size="17" font-weight="750" fill="#173044">Overbygning · prinsippsnitt</text>
  <text x="${cx}" y="${(yTop+yWear)/2+4}" text-anchor="middle" font-size="13" font-weight="700" fill="#31291f">Slitelag 100 mm</text>
  <text x="${cx}" y="${(yWear+yBase)/2+6}" text-anchor="middle" font-size="17" font-weight="750" fill="#fff">Bærelag ${baseMm} mm</text>
- ${extraMm>0?`<text x="${cx}" y="${(yBase+py)/2+5}" text-anchor="middle" font-size="14" font-weight="700" fill="#293629">Forsterkningslag ${extraMm} mm</text>`:''}
+ ${extraMm>0?`<text x="${cx}" y="${(yBase+py)/2+5}" text-anchor="middle" font-size="${(py-yBase)<24?11:14}" font-weight="800" fill="#213529">Forsterkningslag ${extraMm} mm</text>`:''}
  <text x="${cx}" y="${py+27}" text-anchor="middle" font-size="14" font-weight="700" fill="#284558">Planum</text>
  <text x="${cx}" y="${py+96}" text-anchor="middle" font-size="22" font-weight="800" fill="#433327">Underbygning</text>
  ${label('left',L)}${label('right',R)}
@@ -459,7 +463,9 @@ function update(){
 }
 ['change','input'].forEach(e=>{soil.addEventListener(e,update);bearing.addEventListener(e,update);wear.addEventListener(e,update);reinforcement.addEventListener(e,update);geosynthetic.addEventListener(e,update);});
 for(const key of ['left','right']){$(key+'Type').addEventListener('change',()=>populateSide(key));$(key+'Material').addEventListener('change',update);$(key+'Height').addEventListener('input',update);}
-ditchCondition.addEventListener('change',applyDitchCondition);ditchDepth.addEventListener('input',update);ditchBottom.addEventListener('input',update);ditchInner.addEventListener('change',update);$('print').addEventListener('click',()=>window.print());
+ditchCondition.addEventListener('change',applyDitchCondition);ditchDepth.addEventListener('input',update);ditchBottom.addEventListener('input',update);ditchInner.addEventListener('change',update);
+soil.addEventListener('change',applyAdvice);
+$('print').addEventListener('click',()=>window.print());
 $('copy').addEventListener('click',async()=>{
  const L=sideInfo('left'),R=sideInfo('right'),d=ditchDraft();
  const base=TABLE[soil.value][Number(bearing.value)][Number(wear.value)]*10,extra=Math.max(0,Number(reinforcement.value)||0);
