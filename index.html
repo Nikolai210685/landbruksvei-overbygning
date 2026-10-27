@@ -124,9 +124,18 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
       <option value="1">s-B – Knust løsmasse</option>
     </select>
 
-    <label for="reinforcement">Ekstra forsterkningslag (mm, valgfritt)</label>
-    <input id="reinforcement" type="number" min="0" step="10" placeholder="f.eks. 300">
-    <div class="muted">Oppgi eventuell tilleggstykkelse for forsterkningslag som egen prosjekteringsbeslutning. Tomt felt = 0 mm.</div>
+    <label for="reinforcement">Forsterkningslag – prosjektert tykkelse (mm)</label>
+    <input id="reinforcement" type="number" min="0" step="10" value="0">
+    <div class="muted">Foreslått verdi fylles inn når bæreevnegruppe endres. Kan overstyres av prosjekterende.</div>
+    <div class="note" id="reinforcementAdvice" aria-live="polite"></div>
+    <label for="geosynthetic">Filterlag / geosyntet</label>
+    <select id="geosynthetic">
+      <option value="none">Ikke valgt</option>
+      <option value="fiberduk">Fiberduk – skille-/filterfunksjon</option>
+      <option value="geonett">Geonett – armering (må dimensjoneres)</option>
+      <option value="both">Fiberduk og geonett</option>
+    </select>
+    <div class="muted">Valget endrer ikke automatisk lagtykkelsen. Geonett krever egen dokumentasjon og vurdering av eventuell reduksjon.</div>
 
     <div class="note">
       <strong>Tabellgrunnlag:</strong> Veiklasse 3 er aktivert og kontrollert mot tabell 3.2. Slitelag er satt til 100 mm i henhold til normen. Forsterkningslag prosjekteres ved behov.
@@ -214,7 +223,22 @@ const SOIL_TEXT={
  '7b':'Torvmark'
 };
 const $=id=>document.getElementById(id);
-const soil=$('soil'), bearing=$('bearing'), wear=$('wear'), reinforcement=$('reinforcement');
+const soil=$('soil'), bearing=$('bearing'), wear=$('wear'), reinforcement=$('reinforcement'), geosynthetic=$('geosynthetic');
+const ADVICE={
+ '1':{mm:0,text:'Normalt ikke behov for eget forsterkningslag.'},
+ '2':{mm:0,text:'Normalt ikke behov for eget forsterkningslag.'},
+ '3':{mm:0,text:'Normalt ikke behov for eget forsterkningslag.'},
+ '4':{mm:0,text:'Normalt ikke behov for eget forsterkningslag.'},
+ '5':{mm:100,text:'Vurder 50–100 mm ved behov. 100 mm er foreslått som foreløpig verdi.'},
+ '6':{mm:300,text:'Veiledende forsterkningslag: 300 mm.'},
+ '7a':{mm:600,text:'Veiledende forsterkningslag: 600 mm. Kontroller bæreevne og anleggsgjennomføring.'},
+ '7b':{mm:null,text:'Torvmark/myr krever særskilt vurdering og løsning med geosynteter. Ingen automatisk tykkelse.'}
+};
+function applyAdvice(){
+ const a=ADVICE[soil.value];
+ reinforcement.value=a.mm===null?'':String(a.mm);
+ update();
+}
 
 function esc(s){return String(s).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]));}
 
@@ -261,6 +285,11 @@ function update(){
   const raw=Number(reinforcement.value);
   const extraMm=(reinforcement.value.trim()!=='' && Number.isFinite(raw) && raw>=0)?raw:0;
   const totalMm=100+baseMm+extraMm;
+  const a=ADVICE[group];
+  const manual=a.mm!==null && extraMm!==a.mm;
+  const synt=geosynthetic.value;
+  $('reinforcementAdvice').textContent='Veiledende vurdering: '+a.text+(manual?' Prosjektert verdi avviker fra standardforslaget.':'')+(group==='7b'?' Angi en prosjektert tykkelse og kontroller særskilt.':'');
+  if(group==='7b'&&!reinforcement.value.trim()) $('reinforcementAdvice').textContent+=' Sum er foreløpig og inkluderer ikke forsterkningslag.';
 
   $('wearout').textContent='100 mm';
   $('baseout').textContent=baseMm+' mm';
@@ -268,13 +297,15 @@ function update(){
   $('totalout').textContent=totalMm+' mm';
 
   $('diagram').innerHTML=renderDiagram(baseMm, extraMm);
+  $('diagram').setAttribute('data-geosynthetic',synt);
+  $('diagram').querySelector('svg')?.setAttribute('aria-description','Geosyntet: '+geosynthetic.options[geosynthetic.selectedIndex].text);
 
   $('summary1').textContent=`Veiklasse 3 med bæreevnegruppe ${group} – ${SOIL_TEXT[group]}.`;
   $('summary2').textContent=`Valgt materialkvalitet: bærelag b-${'ABCD'[b]} og slitelag s-${'AB'[s]}.`;
   $('summary3').textContent=`Beregnet bærelagstykkelse fra tabell 3.2: ${baseMm} mm. Slitelag: 100 mm.`;
-  $('summary4').textContent=`Samlet overbygning i denne beregningen: ${totalMm} mm. Ekstra forsterkningslag: ${extraMm} mm.`;
+  $('summary4').textContent=`Sum valgte lag: ${totalMm} mm. Forsterkningslag: ${extraMm} mm. Geosyntet: ${geosynthetic.options[geosynthetic.selectedIndex].text}.`;
 
-  $('warningBox').innerHTML = `<strong>Faglig kontroll:</strong> Resultatet bygger på tabellverdier for veiklasse 3. Vurder drenering, materialegenskaper, planum/underbygning, teleforhold og behov for eget forsterkningslag før løsning fastsettes.`;
+  $('warningBox').innerHTML = '<strong>Faglig kontroll:</strong> Anbefaling om forsterkningslag er veiledende, ikke automatisk dimensjonering. Kontroller normtekst og stedlige grunnforhold før bruk i prosjektering. Fiberduk/geonett inngår ikke som en beregnet reduksjon av tykkelsen.';
 }
 
 ['change','input'].forEach(evt=>{
@@ -282,7 +313,9 @@ function update(){
   bearing.addEventListener(evt,update);
   wear.addEventListener(evt,update);
   reinforcement.addEventListener(evt,update);
+  geosynthetic.addEventListener(evt,update);
 });
+soil.addEventListener('change',applyAdvice);
 $('print').addEventListener('click',()=>window.print());
 $('copy').addEventListener('click',async()=>{
   const group=soil.value, b=+bearing.value, s=+wear.value;
@@ -297,6 +330,7 @@ $('copy').addEventListener('click',async()=>{
     `Bærelag: b-${'ABCD'[b]}, ${baseMm} mm\n`+
     `Slitelag: s-${'AB'[s]}, 100 mm\n`+
     `Forsterkningslag (valgt): ${extraMm} mm\n`+
+    `Geosyntet: ${geosynthetic.options[geosynthetic.selectedIndex].text}\n`+
     `Sum overbygning: ${totalMm} mm\n`+
     `Kilde: Normaler for landbruksveier, versjon 2, mars 2026, tabell 3.2.\n`+
     `Forutsetter faglig kontroll.`;
@@ -308,7 +342,7 @@ $('copy').addEventListener('click',async()=>{
     alert('Kunne ikke kopiere til utklippstavlen. Bruk Skriv ut / lagre som PDF.');
   }
 });
-update();
+applyAdvice();
 </script>
 </body>
 </html>
