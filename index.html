@@ -481,8 +481,57 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  }
  // A cut rock face is a geological mass, not a thin wall. The diagonal lower
  // boundary descends from the ditch excavation into the subsurface at section bottom.
+ // A rock cut is one continuous geological mass, clipped at the centreline
+ // when the opposite side is fill. The excavation zone is drawn above the
+ // blasted-rock boundary; solid bedrock starts strictly BELOW that line.
+ function renderRockCutEngineered(key,side,root){
+   const sign=key==='left'?-1:1;
+   const rise=side.height*1000*scale;
+   const yB=py+dep*scale;
+   const inside=root+sign*dep*scale*m;
+   const outside=inside+sign*bot*scale;
+   const crest=outside+sign*rise*side.ratio;
+   const yCrest=yB-rise;
+   const left=key==='left';
+   const edge=left?16:1484;
+   // With dypsprengning disabled, draw rock at natural planum and ditch bottom
+   // without claiming that blasting has been designed.
+   const roadDepth=dyp.active?dyp.min*scale:0;
+   const ditchDepth=dyp.active?dyp.extra*scale:0;
+   const roadLevel=py+roadDepth;
+   const centreLevel=py-crown+roadDepth;
+   const ditchLevel=yB+ditchDepth;
+   // Above the cut-off is blasted non-frost-susceptible material; below is intact rock.
+   // The natural cut face remains rock outside the ditch.
+   const rockTop=left
+      ? `M${edge} ${yCrest} H${crest} L${outside} ${yB} L${outside} ${ditchLevel} L${inside} ${ditchLevel} L${root} ${roadLevel} L${cx} ${centreLevel}`
+      : `M${cx} ${centreLevel} L${root} ${roadLevel} L${inside} ${ditchLevel} L${outside} ${ditchLevel} L${outside} ${yB} L${crest} ${yCrest} H${edge}`;
+   const rockPolygon=left
+     ? `${rockTop} V${baseEarth} H${edge} Z`
+     : `${rockTop} V${baseEarth} H${cx} Z`;
+   const excavatedBand=left
+     ? `M${cx} ${py-crown} L${root} ${py} L${inside} ${yB} H${outside} V${ditchLevel} H${inside} L${root} ${roadLevel} L${cx} ${centreLevel} Z`
+     : `M${cx} ${py-crown} L${root} ${py} L${inside} ${yB} H${outside} V${ditchLevel} H${inside} L${root} ${roadLevel} L${cx} ${centreLevel} Z`;
+   // A polygon only exists at/below the actual boundary, with no extension onto fill.
+   const rockFill=side.material.id==='looserock'?'rockLoose':'rockSolid';
+   const depthMark=(inside+outside)/2;
+   const boxX=Math.max(15,Math.min(1205,depthMark-140));
+   return `<path data-ground="${key}-rock" d="${rockPolygon}" fill="url(#${rockFill})" stroke="none"/>
+   ${dyp.active?`<path data-excavated-zone="${key}" d="${excavatedBand}" fill="url(#rockLoose)" stroke="none"/>`:''}
+   <path d="M${crest} ${yCrest} L${outside} ${yB}" stroke="#334655" stroke-width="3" fill="none"/>
+   <path d="M${root} ${py} L${inside} ${yB} H${outside}" stroke="#157ca2" stroke-width="3.5" fill="none" stroke-linejoin="round"/>
+   <g data-ditch-depth="${key}" aria-label="Grøftedybde ${fmt2(dep/1000)} meter under planum">
+     <line x1="${depthMark}" y1="${py}" x2="${depthMark}" y2="${yB}" stroke="#155e83" stroke-width="1.8"/>
+     <path d="M${depthMark-7} ${py} h14 M${depthMark-7} ${yB} h14" fill="none" stroke="#155e83" stroke-width="1.8"/>
+     <path d="M${depthMark} ${yB-2} L${depthMark+(left?-32:32)} 212" fill="none" stroke="#155e83" stroke-width="1.2" stroke-dasharray="4 4" opacity=".85"/>
+     <rect x="${boxX}" y="166" width="280" height="43" rx="9" fill="#fff" stroke="#bed4e0" opacity=".97"/>
+     <text x="${boxX+140}" y="184" text-anchor="middle" font-size="16" font-weight="800" fill="#174b69">Grøftedybde ${fmt2(dep/1000)} m</text>
+     <text x="${boxX+140}" y="200" text-anchor="middle" font-size="14" font-weight="650" fill="#174b69">under planum</text>
+   </g>`;
+ }
  function renderRockCut(key,side,root){
   if(side.type!=='cut')return '';
+  if(isRockCut(key))return renderRockCutEngineered(key,side,root);
   const sign=key==='left'?-1:1,rise=side.height*1000*scale;
   const yB=py+dep*scale,inside=root+sign*dep*scale*m,outside=inside+sign*bot*scale;
   const crest=outside+sign*rise*side.ratio,yCrest=yB-rise;
@@ -556,13 +605,10 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
   if(net){const yy=y+22+row*27;out+=`<path d="M${x+18} ${yy} H${x+59}" stroke="#986fc0" stroke-width="4" stroke-dasharray="7 4" fill="none"/><text x="${x+74}" y="${yy+5}" font-size="16" font-weight="750" fill="#214456">Geonett – armering</text>`;}
   return `<g data-geosynthetic-labels="${synt}">${out}</g>`;
  }
- function rockUnderPlanum(){
-   let shapes='';
-   if(isRockCut('left'))shapes+=`<path data-fjell-under-planum="venstre" d="M${baseL} ${py} L${cx} ${py-crown} V${baseEarth} H${baseL} Z" fill="url(#rockSolid)" stroke="none"/>`;
-   if(isRockCut('right'))shapes+=`<path data-fjell-under-planum="hoyre" d="M${cx} ${py-crown} L${baseR} ${py} V${baseEarth} H${cx} Z" fill="url(#rockSolid)" stroke="none"/>`;
-   return shapes;
- }
- function dypsprengningLines(){
+ // The bedrock under planum is now part of renderRockCutEngineered().
+ // No separate overlay: it caused the fjell texture to spill over the fill side.
+ function rockUnderPlanum(){ return ''; }
+  function dypsprengningLines(){
    if(!dyp.active)return '';
    const depth=dyp.min*scale, yDitch=py+(dep+dyp.extra)*scale;
    let paths='';
