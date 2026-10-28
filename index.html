@@ -81,6 +81,10 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
 .kartkilde-link small{color:var(--muted);font-size:11px;line-height:1.35;margin-top:1px}
 .kartkilde-link > span:last-child{font-size:19px;flex:none}
 .kartkilder p.kartkilder-merknad{margin:10px 0 0}
+.dyp-toggle{display:flex;align-items:center;gap:12px;font-size:15px;cursor:pointer;background:#edf6fa;padding:12px 14px;border-radius:10px;margin:14px 0}
+.dyp-toggle input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#1f6a8e;margin:0}
+#dypSettings[hidden]{display:none}
+#dypSettings{padding:4px 14px 15px;border:1px solid #d4e1ea;border-radius:12px;background:#f8fbfd}
 </style>
 </head>
 <body>
@@ -195,6 +199,17 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
     <select id="ditchInner"><option value="1">1:1</option><option value="1.5" selected>1:1,5</option><option value="2">1:2</option><option value="2.5">1:2,5</option><option value="3">1:3</option></select>
     <p class="muted">Ved skjæring får overbygningens side og grøft mot veg samme helning. Ved fylling følger overbygningens side fyllingsskråningen. Ytre skjæringsskråning følger valgt materiale.</p>
     <div class="note" id="ditchAdvice"></div>
+    <h3>4. Dypsprengning ved fjellskjæring</h3>
+    <label class="dyp-toggle" for="dypEnabled"><input id="dypEnabled" type="checkbox"> Vis og eksporter dypsprengning</label>
+    <div id="dypSettings" hidden>
+      <label for="dypMin">Minste sprengningsdybde under planum (mm)</label>
+      <input id="dypMin" type="number" min="200" max="3000" step="50" value="200">
+      <label for="dypExtra">Ekstra sprengningsdybde under grøftebunn (mm)</label>
+      <input id="dypExtra" type="number" min="0" max="3000" step="50" value="200">
+      <p class="muted">Ekstra dybde er en prosjekteringsverdi, ikke en fast minimumsverdi i normen. Grøftedybde og dypsprengning beregnes separat.</p>
+    </div>
+    <div class="note" id="dypAdvice" aria-live="polite"></div>
+    <div class="note"><strong>Normhenvisning:</strong> Normaler for landbruksveier, pkt. 4.7 «Sprengning og pigging»: fast fjell og større steiner innen planeringsbredden sprenges eller pigges til minst 200 mm under planum. Dypsprengning bør være dypest der grøften er plassert.</div>
 <div class="note">
       <strong>Tabellgrunnlag:</strong> Veiklasse 2–5 er aktivert med tabell 3.1–3.4. Slitelag er satt til 100 mm i henhold til normen. Forsterkningslag prosjekteres ved behov.
     </div>
@@ -318,12 +333,39 @@ const SLOPE_DATA={
 };
 const $=id=>document.getElementById(id);
 const ditchCondition=$('ditchCondition'),ditchDepth=$('ditchDepth'),ditchBottom=$('ditchBottom'),ditchInner=$('ditchInner');
+const dypEnabled=$('dypEnabled'),dypMin=$('dypMin'),dypExtra=$('dypExtra');
 const formatNo=n=>String(n).replace('.',',');
 const fmt2=n=>n.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2});
 function sideInfo(key){
  const type=$(key+'Type').value,material=SLOPE_DATA[type].find(x=>x.id===$(key+'Material').value)||SLOPE_DATA[type][0];
  // Only a symbolic drawing height: no real terrain height input.
  return {type,material,height:1,ratio:material.h/material.v};
+}
+function isRockCut(key){
+ const side=sideInfo(key);
+ return side.type==='cut'&&['solidrock','looserock'].includes(side.material.id);
+}
+function dypsprengningState(){
+ const min=Number(dypMin.value),extra=Number(dypExtra.value);
+ const valid=dypMin.value.trim()!==''&&dypExtra.value.trim()!==''&&Number.isFinite(min)&&Number.isFinite(extra)&&min>=200&&min<=3000&&extra>=0&&extra<=3000;
+ const eligible=isRockCut('left')||isRockCut('right');
+ return {enabled:dypEnabled.checked,active:dypEnabled.checked&&eligible&&valid,eligible,valid,min,extra};
+}
+function updateDypsprengningAdvice(){
+ const state=dypsprengningState(),d=ditchDraft();
+ $('dypSettings').hidden=!state.enabled;
+ const both=isRockCut('left')&&isRockCut('right');
+ let message='';
+ if(!state.eligible)message='Dypsprengning gjelder bare ved fjellskjæring. Velg fast eller løst fjell som skjæringsmateriale.';
+ else if(!state.enabled)message=(both?'Fjell vises under planum på begge sider. ':'Fjell vises under planum på aktuell side. ')+'Aktiver dypsprengning for å vise sprengningsnivå og eksportere det til DXF.';
+ else if(!state.valid)message='Ugyldige mål: minste dypsprengning må være minst 200 mm under planum. Ekstra dybde må være 0–3000 mm.';
+ else{
+   const bottom=d?d.depth:0;
+   const dypFromPlanum=bottom+state.extra;
+   message='Dypsprengning: '+state.min+' mm under planum; ved grøft: '+state.extra+' mm under grøftebunn ('+dypFromPlanum+' mm under planum). Dette er separate mål fra grøftedybden. Jf. pkt. 4.7.';
+   if(d&&dypFromPlanum<=state.min)message+=' Kontroller dybden ved grøft: normen anbefaler størst sprengningsdybde der grøften er plassert.';
+ }
+ $('dypAdvice').textContent=message;
 }
 function populateSide(key){
  const type=$(key+'Type').value,el=$(key+'Material'),before=el.value,list=SLOPE_DATA[type];
@@ -404,9 +446,11 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  const roadWidthM=roadInfo().width/1000,carriageM=3.5,shoulderM=(roadWidthM-carriageM)/2,crossfall=.05;
  const crown=half*crossfall,carriageHalf=half*carriageM/roadWidthM;
  const total=100+baseMm+extraMm,m=Number(ditchInner.value),dep=ditch?ditch.depth:0,bot=ditch?ditch.bottom:0;
+ const dyp=dypsprengningState();
  const mLeft=L.type==='fill'?L.ratio:m,mRight=R.type==='fill'?R.ratio:m;
  const run=s=>s.height*1000*s.ratio+(s.type==='cut'?dep*(m+s.ratio)+bot:0);
  const scale=Math.min(.105,145/Math.max(total,1),
+  155/Math.max(dyp.active?Math.max(dyp.min,dep+dyp.extra):1,1),
   155/Math.max(L.type==='cut'?L.height*1000+dep:0,R.type==='cut'?R.height*1000+dep:0,1),
   170/Math.max(L.type==='fill'?L.height*1000:0,R.type==='fill'?R.height*1000:0,1),
   440/Math.max(total*mLeft+run(L),total*mRight+run(R),1));
@@ -512,6 +556,24 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
   if(net){const yy=y+22+row*27;out+=`<path d="M${x+18} ${yy} H${x+59}" stroke="#986fc0" stroke-width="4" stroke-dasharray="7 4" fill="none"/><text x="${x+74}" y="${yy+5}" font-size="16" font-weight="750" fill="#214456">Geonett – armering</text>`;}
   return `<g data-geosynthetic-labels="${synt}">${out}</g>`;
  }
+ function rockUnderPlanum(){
+   let shapes='';
+   if(isRockCut('left'))shapes+=`<path data-fjell-under-planum="venstre" d="M${baseL} ${py} L${cx} ${py-crown} V${baseEarth} H${baseL} Z" fill="url(#rockSolid)" stroke="none"/>`;
+   if(isRockCut('right'))shapes+=`<path data-fjell-under-planum="hoyre" d="M${cx} ${py-crown} L${baseR} ${py} V${baseEarth} H${cx} Z" fill="url(#rockSolid)" stroke="none"/>`;
+   return shapes;
+ }
+ function dypsprengningLines(){
+   if(!dyp.active)return '';
+   const depth=dyp.min*scale, yDitch=py+(dep+dyp.extra)*scale;
+   let paths='';
+   for(const [key,rock,root] of [['left',isRockCut('left'),baseL],['right',isRockCut('right'),baseR]]){
+     if(!rock)continue;
+     const sign=key==='left'?-1:1;
+     const yRoad=py+depth,inside=root+sign*dep*scale*m,outside=inside+sign*bot*scale;
+     paths+=`M${cx} ${py-crown+depth} L${root} ${yRoad} L${inside} ${yDitch} L${outside} ${yDitch} `;
+   }
+   return `<g data-dypsprengning="true" aria-label="Dypsprengning, minst ${dyp.min} mm under planum, med ekstra sprengning under grøftebunn"><title>Dypsprengning jf. pkt. 4.7. Grøft og dypsprengning har separate dybdemål.</title><path d="${paths}" fill="none" stroke="#bd4c35" stroke-width="3.2" stroke-dasharray="9 6"/></g>`;
+ }
  function annotations(){
   const result=[];
   const roadCut=(key,fromX,baseX)=>inlineSlopeLabel('road',key,fromX,yTop,baseX,py,'1:'+formatNo(m),-20);
@@ -567,6 +629,8 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  ${renderCutFoundation('left',L,baseL)}${renderCutFoundation('right',R,baseR)}
  <!-- Cut geology overlays fill where bedrock continues diagonally under the road. -->
  ${renderRockCut('left',L,baseL)}${renderRockCut('right',R,baseR)}
+ <!-- Fjellgrunn under planum is drawn separately from the road pavement. -->
+ ${rockUnderPlanum()}${dypsprengningLines()}
  <line x1="${bottomLeft}" y1="${baseEarth}" x2="${bottomRight}" y2="${baseEarth}" stroke="#7a8c99" stroke-width="1.4" opacity=".75"/>
  ${extraMm>0?`<path data-layer="forsterkningslag" d="${layer(yBase,py)}" fill="url(#rein)" stroke="#4c6556" stroke-width="2.3"/>`:''}
  <path d="${layer(yWear,yBase)}" fill="url(#base)" stroke="#4d5960" stroke-width="1.5"/>
@@ -628,6 +692,7 @@ function update(){
  const torvUnspecified=group==='7b'&&reinforcement.value.trim()==='';
  $('reinforceout').textContent=torvUnspecified?'Ikke dimensjonert':extra+' mm';
  $('totalout').textContent=torvUnspecified?'Ikke dimensjonert':total+' mm';
+ updateDypsprengningAdvice();
  $('diagram').innerHTML=renderDiagram(base,extra,ditchDraft(),synt);
  $('diagram').setAttribute('data-geosynthetic',synt);
  $('diagram').querySelector('svg')?.setAttribute('aria-description',desc(L)+'. '+desc(R));
@@ -641,6 +706,9 @@ function update(){
 for(const key of ['left','right']){$(key+'Type').addEventListener('change',()=>populateSide(key));$(key+'Material').addEventListener('change',update);}
 ditchCondition.addEventListener('change',applyDitchCondition);ditchDepth.addEventListener('input',update);ditchBottom.addEventListener('input',update);ditchInner.addEventListener('change',update);
 useGeonettReduction.addEventListener('change',update);
+dypEnabled.addEventListener('change',update);
+dypMin.addEventListener('input',update);
+dypExtra.addEventListener('input',update);
 soil.addEventListener('change',applyAdvice);
 document.getElementById('road').addEventListener('change',applyAdvice);
 // Browser-only SVG and CAD exchange. SVG coordinates are illustrative, not real survey units.
@@ -751,7 +819,8 @@ function exportDxfString(){
  const base=baseThickness();
  const rein=reinforcementDesign().actual;
  const pavement=100+base+(Number.isFinite(rein)?rein:0);
- const ditch=ditchDraft(),inner=Number(ditchInner.value);
+ const ditch=ditchDraft(),inner=Number(ditchInner.value),dyp=dypsprengningState();
+ if(dyp.enabled&&dyp.eligible&&!dyp.valid)throw Error('Dypsprengning: oppgi minst 200 mm under planum og gyldig ekstra dybde under grøftebunn.');
  const e=[],fmt=n=>String(Number(n.toFixed(5)));
  const add=(...v)=>e.push(...v.map(String));
  const line=(x1,y1,x2,y2,layer)=>{
@@ -793,7 +862,22 @@ function exportDxfString(){
    txt(Math.min(xi,xo),bottomY-170,'GROEFTBUNN '+ditch.bottom+' mm',95);
   }
  }
- const layers=[['KJOEREBANE',7],['SKULDER',2],['OVERBYGNING',30],['PLANUM',8],['GROEFT_INNSIDE',4],['GROEFT_BUNN',3],['SKJAERING',5],['FYLLING',6],['TEKST',7]];
+ if(dyp.active){
+   for(const which of ['left','right']){
+     if(!isRockCut(which))continue;
+     const sign=which==='left'?-1:1,x=sign*edgeX;
+     const roadLevel=planum-dyp.min;
+     const ditchFloor=planum-ditch.depth;
+     const inside=x+sign*(edgeY-ditchFloor)*inner;
+     const outside=inside+sign*ditch.bottom;
+     const deepLevel=ditchFloor-dyp.extra;
+     line(0,roadLevel,x,roadLevel,'DYPSPRENGNING');
+     line(x,roadLevel,inside,deepLevel,'DYPSPRENGNING');
+     line(inside,deepLevel,outside,deepLevel,'DYPSPRENGNING');
+     txt(which==='left'?-edgeX:-150,Math.min(roadLevel,deepLevel)-270,'DYPSPRENGNING MIN '+dyp.min+' MM UNDER PLANUM',100,'DYPSPRENGNING');
+   }
+ }
+ const layers=[['KJOEREBANE',7],['SKULDER',2],['OVERBYGNING',30],['PLANUM',8],['GROEFT_INNSIDE',4],['GROEFT_BUNN',3],['SKJAERING',5],['FYLLING',6],['FJELL',8],['DYPSPRENGNING',1],['TEKST',7]];
  const header=['0','SECTION','2','HEADER','9','$ACADVER','1','AC1009','9','$MEASUREMENT','70','1','0','ENDSEC'];
  const table=['0','SECTION','2','TABLES','0','TABLE','2','LTYPE','70','1','0','LTYPE','2','CONTINUOUS','70','0','3','Solid line','72','65','73','0','40','0','0','ENDTAB','0','TABLE','2','LAYER','70',String(layers.length)];
  for(const [name,color] of layers)table.push('0','LAYER','2',name,'70','0','62',String(color),'6','CONTINUOUS');
@@ -820,6 +904,8 @@ $('copy').addEventListener('click',async()=>{
  const describe=(label,x)=>label+': '+(x.type==='cut'?'Skjæring':'Fylling')+', '+x.material.name+' ('+x.material.v+':'+formatNo(x.material.h)+')'+(x.type==='cut'?', med grøft':', uten grøft');
  const items=['Landbruksvei Overbygningskalkulator','Utviklet av Nikolai Medvedev','Veiklasse '+document.getElementById('road').value+', bæreevnegruppe '+soil.value,'Slitelag 100 mm','Bærelag '+base+' mm','Forsterkningslag uten geonett '+reinforcementCalc.original+' mm','Reduksjon med geonett '+reinforcementCalc.reduction+' mm','Prosjektert forsterkningslag '+extra+' mm','Geosyntet '+geosynthetic.options[geosynthetic.selectedIndex].text,'Sum '+(100+base+extra)+' mm',describe('Venstre',L),describe('Høyre',R)];
  if(d)items.push('Grøfter i skjæring: dybde '+d.depth+' mm, bunnbredde '+d.bottom+' mm');
+ const ds=dypsprengningState();
+ items.push('Dypsprengning: '+(ds.active?ds.min+' mm under planum; '+ds.extra+' mm ekstra under grøftebunn; jf. pkt. 4.7':ds.enabled?'Valgt, men ikke aktiv uten gyldig fjellskjæring og mål':'Ikke valgt'));
  items.push('Kilde: Normaler for landbruksveier, versjon 2 mars 2026, tabell '+roadInfo().source+'. Forutsetter faglig kontroll.');
  try{await navigator.clipboard.writeText(items.join('\n'));$('copy').textContent='Kopiert!';setTimeout(()=>$('copy').textContent='Kopier beregning',1800);}
  catch(e){alert('Kunne ikke kopiere. Bruk Skriv ut / PDF.');}
