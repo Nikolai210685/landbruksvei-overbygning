@@ -200,7 +200,7 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
     <p class="muted">Ved skjæring får overbygningens side og grøft mot veg samme helning. Ved fylling følger overbygningens side fyllingsskråningen. Ytre skjæringsskråning følger valgt materiale.</p>
     <div class="note" id="ditchAdvice"></div>
     <h3>4. Dypsprengning ved fjellskjæring</h3>
-    <label class="dyp-toggle" for="dypEnabled"><input id="dypEnabled" type="checkbox"> Vis og eksporter dypsprengning</label>
+    <label class="dyp-toggle" for="dypEnabled"><input id="dypEnabled" type="checkbox"> Vis og eksporter dypsprengning (automatisk ved fjellskjæring på begge sider)</label>
     <div id="dypSettings" hidden>
       <label for="dypMin">Minste sprengningsdybde under planum (mm)</label>
       <input id="dypMin" type="number" min="200" max="3000" step="50" value="200">
@@ -355,22 +355,31 @@ function updateDypsprengningAdvice(){
  const state=dypsprengningState(),d=ditchDraft();
  $('dypSettings').hidden=!state.enabled;
  const both=isRockCut('left')&&isRockCut('right');
- let message='';
+ let message=both&&state.enabled?'Automatisk aktivert: fjellskjæring på begge sider (10:1 / 2:1). ':'';
+
  if(!state.eligible)message='Dypsprengning gjelder bare ved fjellskjæring. Velg fast eller løst fjell som skjæringsmateriale.';
- else if(!state.enabled)message=(both?'Fjell vises under planum på begge sider. ':'Fjell vises under planum på aktuell side. ')+'Aktiver dypsprengning for å vise sprengningsnivå og eksportere det til DXF.';
- else if(!state.valid)message='Ugyldige mål: minste dypsprengning må være minst 200 mm under planum. Ekstra dybde må være 0–3000 mm.';
+ else if(!state.enabled)message=(both?'Fjellskjæring på begge sider – dypsprengning er slått av manuelt. ':'Fjellskjæring på én side. ')+'Aktiver dypsprengning for å vise sprengningsnivå og eksportere det til DXF.';
+ else if(!state.valid)message+='Ugyldige mål: minste dypsprengning må være minst 200 mm under planum. Ekstra dybde må være 0–3000 mm.';
  else{
    const bottom=d?d.depth:0;
    const dypFromPlanum=bottom+state.extra;
-   message='Dypsprengning: '+state.min+' mm under planum; ved grøft: '+state.extra+' mm under grøftebunn ('+dypFromPlanum+' mm under planum). Dette er separate mål fra grøftedybden. Jf. pkt. 4.7.';
+   message+='Dypsprengning: '+state.min+' mm under planum; ved grøft: '+state.extra+' mm under grøftebunn ('+dypFromPlanum+' mm under planum). Dette er separate mål fra grøftedybden. Jf. pkt. 4.7.';
    if(d&&dypFromPlanum<=state.min)message+=' Kontroller dybden ved grøft: normen anbefaler størst sprengningsdybde der grøften er plassert.';
  }
  $('dypAdvice').textContent=message;
 }
+// Auto-enable dypsprengning when BOTH sides are fjellskjæring:
+ // fast fjell (10:1) or løst fjell (2:1), including mixed rock types.
+ // The checkbox remains editable so the designer can override deliberately.
+ function syncDypsprengningWithSlopes(){
+  dypEnabled.checked=isRockCut('left')&&isRockCut('right');
+  update();
+ }
 function populateSide(key){
  const type=$(key+'Type').value,el=$(key+'Material'),before=el.value,list=SLOPE_DATA[type];
  el.innerHTML=list.map(x=>'<option value="'+x.id+'">'+x.name+' ('+x.v+':'+formatNo(x.h)+')</option>').join('');
- el.value=list.some(x=>x.id===before)?before:(type==='cut'?'solidrock':'sandmoraine');update();
+ el.value=list.some(x=>x.id===before)?before:(type==='cut'?'solidrock':'sandmoraine');
+ syncDypsprengningWithSlopes();
 }
 function ditchDraft(){
  const h=Number(ditchDepth.value),b=Number(ditchBottom.value),m=Number(ditchInner.value);
@@ -751,7 +760,7 @@ function update(){
  $('warningBox').innerHTML=(group==='7b'?'<strong>IKKE DIMENSJONERT – bæreevnegruppe 7b (torvmark/myr):</strong> Normen angir ingen generell forsterkningslagstykkelse. Det kreves særskilt vurdering av overbygning og geosynteter. <strong>Henvisning:</strong> Normaler for landbruksveier, pkt. 3.3.10. Oppgitt total kan ikke brukes som ferdig dimensjonering. ':'')+'<strong>Faglig kontroll:</strong> Tabellhelningene er ikke stabilitetsdokumentasjon. Kontroller erosjon, vannmengde og lokale grunnforhold. Skissen er ikke målfast.';
 }
 ['change','input'].forEach(e=>{soil.addEventListener(e,update);bearing.addEventListener(e,update);wear.addEventListener(e,update);reinforcement.addEventListener(e,update);geosynthetic.addEventListener(e,update);});
-for(const key of ['left','right']){$(key+'Type').addEventListener('change',()=>populateSide(key));$(key+'Material').addEventListener('change',update);}
+for(const key of ['left','right']){$(key+'Type').addEventListener('change',()=>populateSide(key));$(key+'Material').addEventListener('change',syncDypsprengningWithSlopes);}
 ditchCondition.addEventListener('change',applyDitchCondition);ditchDepth.addEventListener('input',update);ditchBottom.addEventListener('input',update);ditchInner.addEventListener('change',update);
 useGeonettReduction.addEventListener('change',update);
 dypEnabled.addEventListener('change',update);
