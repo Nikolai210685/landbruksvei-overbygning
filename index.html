@@ -85,6 +85,11 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
 .dyp-toggle input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#1f6a8e;margin:0}
 #dypSettings[hidden]{display:none}
 #dypSettings{padding:4px 14px 15px;border:1px solid #d4e1ea;border-radius:12px;background:#f8fbfd}
+.rock-input-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.rock-input-grid label{font-size:12px}
+.credit-box a{color:#c5eaff;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
+.footer-card a{color:var(--accent2);text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
+@media(max-width:560px){.rock-input-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -98,6 +103,7 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
       <div class="eyebrow">Utviklet av</div>
       <div class="name">Nikolai Medvedev</div>
       <div class="name">Torleif Kildal</div>
+      <div class="sub" style="margin-top:10px"><a href="mailto:mednikvas@gmail.com">Kontakt: mednikvas@gmail.com</a></div>
     </div>
   </div>
 </header>
@@ -199,7 +205,18 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
     <select id="ditchInner"><option value="1">1:1</option><option value="1.5" selected>1:1,5</option><option value="2">1:2</option><option value="2.5">1:2,5</option><option value="3">1:3</option></select>
     <p class="muted">Ved skjæring får overbygningens side og grøft mot veg samme helning. Ved fylling følger overbygningens side fyllingsskråningen. Ytre skjæringsskråning følger valgt materiale.</p>
     <div class="note" id="ditchAdvice"></div>
-    <h3>4. Dypsprengning ved fjellskjæring</h3>
+    <h3>4. Fjellprofil under planum</h3>
+    <label class="dyp-toggle" for="rockProfileEnabled"><input id="rockProfileEnabled" type="checkbox"> Bruk fjellprofil (automatisk ved fjellskjæring)</label>
+    <div id="rockProfileSettings" hidden>
+      <p class="muted">Angi observert eller antatt dybde til fjell fra planum i tre punkter. Dette er fjellets beliggenhet, ikke sprengningsdybden. Verdier større enn illustrasjonshøyden er tillatt.</p>
+      <div class="rock-input-grid">
+        <div><label for="rockDepthLeft">Venstre skulder (m)</label><input id="rockDepthLeft" type="number" min="0" step="0.1" value="0.2"></div>
+        <div><label for="rockDepthCenter">Senterlinje CL (m)</label><input id="rockDepthCenter" type="number" min="0" step="0.1" value="0.2"></div>
+        <div><label for="rockDepthRight">Høyre skulder (m)</label><input id="rockDepthRight" type="number" min="0" step="0.1" value="0.2"></div>
+      </div>
+      <div class="note" id="rockProfileAdvice" aria-live="polite"></div>
+    </div>
+    <h3>5. Dypsprengning ved fjellskjæring</h3>
     <label class="dyp-toggle" for="dypEnabled"><input id="dypEnabled" type="checkbox"> Vis og eksporter dypsprengning (automatisk ved fjellskjæring på begge sider)</label>
     <div id="dypSettings" hidden>
       <label for="dypMin">Minste sprengningsdybde under planum (mm)</label>
@@ -276,6 +293,7 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
     <div class="mini" style="font-weight:700;margin-bottom:6px">Utviklet av</div>
     <div class="signature">Nikolai Medvedev</div>
     <div class="signature">Torleif Kildal</div>
+    <div class="mini" style="margin:6px 0 12px"><a href="mailto:mednikvas@gmail.com">Kontakt: mednikvas@gmail.com</a></div>
     <div class="mini">Utviklingsversjon · Veiklasse 2–5 har klassevise tabeller. Ikke et offisielt produkt fra Skogkurs eller en myndighet.</div>
   </div>
 </footer>
@@ -335,6 +353,26 @@ const SLOPE_DATA={
 const $=id=>document.getElementById(id);
 const ditchCondition=$('ditchCondition'),ditchDepth=$('ditchDepth'),ditchBottom=$('ditchBottom'),ditchInner=$('ditchInner');
 const dypEnabled=$('dypEnabled'),dypMin=$('dypMin');
+const rockProfileEnabled=$('rockProfileEnabled');
+const rockDepthLeft=$('rockDepthLeft'),rockDepthCenter=$('rockDepthCenter'),rockDepthRight=$('rockDepthRight');
+function rockProfileState(){
+ const parse=el=>el.value.trim()===''?NaN:Number(el.value.replace(',','.'));
+ const left=parse(rockDepthLeft),center=parse(rockDepthCenter),right=parse(rockDepthRight);
+ const valid=[left,center,right].every(n=>Number.isFinite(n)&&n>=0&&n<=1000);
+ const eligible=isRockCut('left')||isRockCut('right');
+ return {enabled:rockProfileEnabled.checked,eligible,valid,active:rockProfileEnabled.checked&&eligible&&valid,left,center,right};
+}
+function updateRockProfileAdvice(){
+ const profile=rockProfileState();
+ $('rockProfileSettings').hidden=!profile.enabled;
+ const note=$('rockProfileAdvice');
+ if(!profile.eligible){note.textContent='Fjellprofil kan aktiveres ved fjellskjæring på minst én side.';return;}
+ if(!profile.valid){note.textContent='Fyll ut alle tre dybder med ikke-negative verdier (m).';return;}
+ const values=[profile.left,profile.center,profile.right];
+ note.textContent='Fjellprofil gjennom tre punkter: '+values.map(x=>fmt2(x)+' m').join(' / ')+
+ '. Fjellprofilen fortsetter i retning fylling og kan gå utenfor illustrasjonen.';
+ if(values.some(v=>v<0.2))note.textContent+=' Fjell ligger mindre enn 200 mm under planum i minst ett punkt: vurder sprengning/pigging, jf. pkt. 4.7.';
+}
 const formatNo=n=>String(n).replace('.',',');
 const fmt2=n=>n.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2});
 function sideInfo(key){
@@ -375,6 +413,7 @@ function updateDypsprengningAdvice(){
  // The checkbox remains editable so the designer can override deliberately.
  function syncDypsprengningWithSlopes(){
   dypEnabled.checked=isRockCut('left')&&isRockCut('right');
+  rockProfileEnabled.checked=isRockCut('left')||isRockCut('right');
   update();
  }
 function populateSide(key){
@@ -458,6 +497,7 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  const crown=half*crossfall,carriageHalf=half*carriageM/roadWidthM;
  const total=100+baseMm+extraMm,m=Number(ditchInner.value),dep=ditch?ditch.depth:0,bot=ditch?ditch.bottom:0;
  const dyp=dypsprengningState();
+ const profile=rockProfileState();
  const mLeft=L.type==='fill'?L.ratio:m,mRight=R.type==='fill'?R.ratio:m;
  const run=s=>s.height*1000*s.ratio+(s.type==='cut'?dep*(m+s.ratio)+bot:0);
  const scale=Math.min(.105,145/Math.max(total,1),
@@ -495,7 +535,69 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  // A rock cut is one continuous geological mass, clipped at the centreline
  // when the opposite side is fill. The excavation zone is drawn above the
  // blasted-rock boundary; solid bedrock starts strictly BELOW that line.
+ function renderRockFaceOnly(key,side,root){
+ const sign=key==='left'?-1:1,left=key==='left';
+ const yB=py+dep*scale;
+ const inside=root+sign*dep*scale*m;
+ const outside=inside+sign*bot*scale;
+ const rise=side.height*1000*scale,crest=outside+sign*rise*side.ratio,yCrest=yB-rise;
+ const edge=left?16:1484;
+ const exterior=left?`M${edge} ${yCrest} H${crest} L${outside} ${yB} V${baseEarth} H${edge} Z`
+                    :`M${crest} ${yCrest} H${edge} V${baseEarth} H${outside} V${yB} Z`;
+ const cutAtPlanum=outside+(crest-outside)*(yB-py)/(yB-yCrest);
+ const voidDitch=`M${root} ${py} L${inside} ${yB} H${outside} L${cutAtPlanum} ${py} Z`;
+ const depthMark=(inside+outside)/2,boxX=Math.max(15,Math.min(1205,depthMark-140));
+ const rockFill=side.material.id==='looserock'?'rockLoose':'rockSolid';
+ return `<path data-ground="${key}-rock-face" d="${exterior}" fill="url(#${rockFill})" stroke="none"/>
+ <path data-ditch-clear="${key}" d="${voidDitch}" fill="#f5f9fb" stroke="none"/>
+ <path d="M${crest} ${yCrest} L${outside} ${yB}" stroke="#334655" stroke-width="3" fill="none"/>
+ <path d="M${root} ${py} L${inside} ${yB} H${outside}" stroke="#157ca2" stroke-width="3.5" fill="none"/>
+ <g data-ditch-depth="${key}" aria-label="Grøftedybde ${fmt2(dep/1000)} meter under planum">
+ <line x1="${depthMark}" y1="${py}" x2="${depthMark}" y2="${yB}" stroke="#155e83" stroke-width="1.8"/>
+ <path d="M${depthMark-7} ${py} h14 M${depthMark-7} ${yB} h14" fill="none" stroke="#155e83" stroke-width="1.8"/>
+ <path d="M${depthMark} ${yB-2} L${depthMark+(left?-32:32)} 212" fill="none" stroke="#155e83" stroke-width="1.2" stroke-dasharray="4 4"/>
+ <rect x="${boxX}" y="166" width="280" height="43" rx="9" fill="#fff" stroke="#bed4e0" opacity=".97"/>
+ <text x="${boxX+140}" y="184" text-anchor="middle" font-size="16" font-weight="800" fill="#174b69">Grøftedybde ${fmt2(dep/1000)} m</text>
+ <text x="${boxX+140}" y="200" text-anchor="middle" font-size="14" font-weight="650" fill="#174b69">under planum</text>
+ </g>`;
+}
+ function renderRockProfile(){
+ if(!profile.active)return '';
+ const yLeft=py+profile.left*1000*scale,yCenter=py-crown+profile.center*1000*scale,yRight=py+profile.right*1000*scale;
+ const startRock=isRockCut('left'),endRock=isRockCut('right');
+ const boundaryLeft=(()=>{if(startRock){const yB=py+dep*scale,inner=baseL-dep*scale*m;return {x:inner-bot*scale,y:yB};}
+   if(L.type==='fill'){return {x:leftFillToe,y:yLeft+(yCenter-yLeft)/(cx-baseL)*(leftFillToe-baseL)};}
+   return {x:baseL,y:yLeft};})();
+ const boundaryRight=(()=>{if(endRock){const yB=py+dep*scale,inner=baseR+dep*scale*m;return {x:inner+bot*scale,y:yB};}
+   if(R.type==='fill'){return {x:rightFillToe,y:yRight+(yRight-yCenter)/(baseR-cx)*(rightFillToe-baseR)};}
+   return {x:baseR,y:yRight};})();
+ const pts=[boundaryLeft,{x:baseL,y:yLeft},{x:cx,y:yCenter},{x:baseR,y:yRight},boundaryRight];
+ const makePath=arr=>arr.map((p,i)=>(i?'L':'M')+p.x.toFixed(3)+' '+p.y.toFixed(3)).join(' ');
+ const area=makePath(pts)+` L${boundaryRight.x} ${baseEarth} L${boundaryLeft.x} ${baseEarth} Z`;
+ const terrain=[];
+ // The clip boundary follows the actual visible ground surface. No rock can spill
+ // above filling slopes or into the empty drainage ditches.
+ if(startRock){
+   const rise=L.height*1000*scale,yB=py+dep*scale;
+   const outer=boundaryLeft.x,crest=outer-L.ratio*rise,yCrest=yB-rise;
+   terrain.push({x:16,y:yCrest},{x:crest,y:yCrest},{x:outer,y:yB},
+                {x:baseL-dep*scale*m,y:yB});
+ }else if(L.type==='fill')terrain.push({x:leftFillToe,y:leftToeY});
+ terrain.push({x:baseL,y:py},{x:cx,y:py-crown},{x:baseR,y:py});
+ if(endRock){
+   const rise=R.height*1000*scale,yB=py+dep*scale;
+   const outer=boundaryRight.x,crest=outer+R.ratio*rise,yCrest=yB-rise;
+   terrain.push({x:baseR+dep*scale*m,y:yB},{x:outer,y:yB},{x:crest,y:yCrest},{x:1484,y:yCrest});
+ }else if(R.type==='fill')terrain.push({x:rightFillToe,y:rightToeY});
+ const clip=makePath(terrain)+` L${terrain[terrain.length-1].x} ${baseEarth} L${terrain[0].x} ${baseEarth} Z`;
+ return `<defs><clipPath id="rockProfileClip"><path d="${clip}"/></clipPath></defs>
+ <g clip-path="url(#rockProfileClip)" data-rock-profile="true">
+  <path data-rock-solid-mass="true" d="${area}" fill="url(#rockSolid)" stroke="none"/>
+  <path data-rock-profile-line="true" d="${makePath(pts)}" stroke="#c27829" stroke-width="3" stroke-linejoin="round" fill="none"/>
+ </g>`;
+}
  function renderRockCutEngineered(key,side,root){
+   if(profile.active)return renderRockFaceOnly(key,side,root);
    const sign=key==='left'?-1:1;
    const rise=side.height*1000*scale;
    const yB=py+dep*scale;
@@ -691,6 +793,8 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  ${renderFilling('left',L,baseL)}${renderFilling('right',R,baseR)}
  <!-- Base beneath grøft is underbygning/fylling, bounded by the inclined rock contact. -->
  ${renderCutFoundation('left',L,baseL)}${renderCutFoundation('right',R,baseR)}
+ <!-- Three-point geological profile crosses the entire road and may extend under fill. -->
+ ${renderRockProfile()}
  <!-- Cut geology overlays fill where bedrock continues diagonally under the road. -->
  ${renderRockCut('left',L,baseL)}${renderRockCut('right',R,baseR)}
  <!-- Fjellgrunn under planum is drawn separately from the road pavement. -->
@@ -722,6 +826,7 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  ${geosyntheticLabels()}
  ${label('left',L)}${label('right',R)}
  <text x="${cx}" y="552" text-anchor="middle" font-size="14" fill="#597487">Prinsippskisse – terrenghøyde er illustrativ. Ikke i målestokk.</text>
+ ${profile.active?`<g data-rock-profile-legend="true"><path d="M40 574 H140" fill="none" stroke="#c27829" stroke-width="3"/><text x="155" y="578" font-size="13" fill="#7a4b20">Fjellprofil fra planum: V ${fmt2(profile.left)} m · CL ${fmt2(profile.center)} m · H ${fmt2(profile.right)} m</text></g>`:''}
  ${dyp.active?`<g data-dyp-legend="true"><path d="M440 577 H570" fill="none" stroke="#bd4c35" stroke-width="3" stroke-dasharray="9 6"/><text x="590" y="581" font-size="15" font-weight="700" fill="#aa442d">Dypsprengning: min. ${dyp.min} mm under planum · jf. pkt. 4.7</text></g>`:''}
  </svg>`;
 }
@@ -758,6 +863,7 @@ function update(){
  $('reinforceout').textContent=torvUnspecified?'Ikke dimensjonert':extra+' mm';
  $('totalout').textContent=torvUnspecified?'Ikke dimensjonert':total+' mm';
  updateDypsprengningAdvice();
+ updateRockProfileAdvice();
  $('diagram').innerHTML=renderDiagram(base,extra,ditchDraft(),synt);
  $('roadWidthInfo').textContent='Veibredde '+fmt2(roadInfo().width/1000)+' m: kjørebane '+fmt2(roadInfo().carriage/1000)+' m + skulder '+fmt2((roadInfo().width-roadInfo().carriage)/2000)+' m på hver side. Tosidig tverrfall 5 % er benyttet i prinsippskissen.';
  $('diagram').setAttribute('data-geosynthetic',synt);
@@ -774,6 +880,8 @@ ditchCondition.addEventListener('change',applyDitchCondition);ditchDepth.addEven
 useGeonettReduction.addEventListener('change',update);
 dypEnabled.addEventListener('change',update);
 dypMin.addEventListener('input',update);
+rockProfileEnabled.addEventListener('change',update);
+for(const el of [rockDepthLeft,rockDepthCenter,rockDepthRight])el.addEventListener('input',update);
 soil.addEventListener('change',applyAdvice);
 document.getElementById('road').addEventListener('change',applyAdvice);
 // Browser-only SVG and CAD exchange. SVG coordinates are illustrative, not real survey units.
@@ -884,7 +992,8 @@ function exportDxfString(){
  const base=baseThickness();
  const rein=reinforcementDesign().actual;
  const pavement=100+base+(Number.isFinite(rein)?rein:0);
- const ditch=ditchDraft(),inner=Number(ditchInner.value),dyp=dypsprengningState();
+ const ditch=ditchDraft(),inner=Number(ditchInner.value),dyp=dypsprengningState(),rock=rockProfileState();
+ if(rock.enabled&&rock.eligible&&!rock.valid)throw Error('Fjellprofil: oppgi gyldig dybde (meter) for venstre, CL og høyre.');
  if(dyp.enabled&&dyp.eligible&&!dyp.valid)throw Error('Dypsprengning: oppgi minst 200 mm under planum.');
  const e=[],fmt=n=>String(Number(n.toFixed(5)));
  const add=(...v)=>e.push(...v.map(String));
@@ -928,6 +1037,28 @@ function exportDxfString(){
    txt(Math.min(xi,xo),bottomY-170,'GROEFTBUNN '+ditch.bottom+' mm',95);
   }
  }
+ if(rock.active){
+   const yLeft=planum-rock.left*1000, yCenter=-pavement-rock.center*1000, yRight=planum-rock.right*1000;
+   const pts=[[-edgeX,yLeft],[0,yCenter],[edgeX,yRight]];
+   if(isRockCut('left')&&ditch){
+     const floor=planum-ditch.depth,xi=-edgeX-(edgeY-floor)*inner;
+     pts.unshift([xi,floor]);
+   }else if(sideInfo('left').type==='fill'){
+     const info=sideInfo('left'),xt=-edgeX-1000*info.ratio;
+     const slope=(yCenter-yLeft)/edgeX;
+     pts.unshift([xt,yLeft+slope*(xt+edgeX)]);
+   }
+   if(isRockCut('right')&&ditch){
+     const floor=planum-ditch.depth,xi=edgeX+(edgeY-floor)*inner;
+     pts.push([xi,floor]);
+   }else if(sideInfo('right').type==='fill'){
+     const info=sideInfo('right'),xt=edgeX+1000*info.ratio;
+     const slope=(yRight-yCenter)/edgeX;
+     pts.push([xt,yRight+slope*(xt-edgeX)]);
+   }
+   for(let i=1;i<pts.length;i++)line(pts[i-1][0],pts[i-1][1],pts[i][0],pts[i][1],'FJELLPROFIL');
+   txt(-edgeX,planum-1460,'FJELLPROFIL V '+fmt(rock.left)+'M / CL '+fmt(rock.center)+'M / H '+fmt(rock.right)+'M',95,'FJELLPROFIL');
+ }
  if(dyp.active){
    txt(-900,planum-dyp.min-440,'FJELL UNDER PLANUM - SPRENGNINGSNIVA ETTER PKT 4.7',95,'FJELL');
    for(const which of ['left','right']){
@@ -944,7 +1075,7 @@ function exportDxfString(){
      txt(which==='left'?-edgeX:-150,Math.min(roadLevel,deepLevel)-270,'DYPSPRENGNING MIN '+dyp.min+' MM UNDER PLANUM',100,'DYPSPRENGNING');
    }
  }
- const layers=[['KJOEREBANE',7],['SKULDER',2],['OVERBYGNING',30],['PLANUM',8],['GROEFT_INNSIDE',4],['GROEFT_BUNN',3],['SKJAERING',5],['FYLLING',6],['FJELL',8],['DYPSPRENGNING',1],['TEKST',7]];
+ const layers=[['KJOEREBANE',7],['SKULDER',2],['OVERBYGNING',30],['PLANUM',8],['GROEFT_INNSIDE',4],['GROEFT_BUNN',3],['SKJAERING',5],['FYLLING',6],['FJELL',8],['FJELLPROFIL',30],['DYPSPRENGNING',1],['TEKST',7]];
  const header=['0','SECTION','2','HEADER','9','$ACADVER','1','AC1009','9','$MEASUREMENT','70','1','0','ENDSEC'];
  const table=['0','SECTION','2','TABLES','0','TABLE','2','LTYPE','70','1','0','LTYPE','2','CONTINUOUS','70','0','3','Solid line','72','65','73','0','40','0','0','ENDTAB','0','TABLE','2','LAYER','70',String(layers.length)];
  for(const [name,color] of layers)table.push('0','LAYER','2',name,'70','0','62',String(color),'6','CONTINUOUS');
@@ -969,8 +1100,10 @@ $('copy').addEventListener('click',async()=>{
  const base=baseThickness();
  const reinforcementCalc=reinforcementDesign(),extra=reinforcementCalc.actual;
  const describe=(label,x)=>label+': '+(x.type==='cut'?'Skjæring':'Fylling')+', '+x.material.name+' ('+x.material.v+':'+formatNo(x.material.h)+')'+(x.type==='cut'?', med grøft':', uten grøft');
- const items=['Landbruksvei Overbygningskalkulator','Utviklet av Nikolai Medvedev og Torleif Kildal','Veiklasse '+document.getElementById('road').value+', bæreevnegruppe '+soil.value,'Slitelag 100 mm','Bærelag '+base+' mm','Forsterkningslag uten geonett '+reinforcementCalc.original+' mm','Reduksjon med geonett '+reinforcementCalc.reduction+' mm','Prosjektert forsterkningslag '+extra+' mm','Geosyntet '+geosynthetic.options[geosynthetic.selectedIndex].text,'Sum '+(100+base+extra)+' mm',describe('Venstre',L),describe('Høyre',R)];
+ const items=['Landbruksvei Overbygningskalkulator','Utviklet av Nikolai Medvedev og Torleif Kildal','Kontakt: mednikvas@gmail.com','Veiklasse '+document.getElementById('road').value+', bæreevnegruppe '+soil.value,'Slitelag 100 mm','Bærelag '+base+' mm','Forsterkningslag uten geonett '+reinforcementCalc.original+' mm','Reduksjon med geonett '+reinforcementCalc.reduction+' mm','Prosjektert forsterkningslag '+extra+' mm','Geosyntet '+geosynthetic.options[geosynthetic.selectedIndex].text,'Sum '+(100+base+extra)+' mm',describe('Venstre',L),describe('Høyre',R)];
  if(d)items.push('Grøfter i skjæring: dybde '+d.depth+' mm, bunnbredde '+d.bottom+' mm');
+ const rock=rockProfileState();
+ items.push('Fjellprofil: '+(rock.active?'venstre '+fmt2(rock.left)+' m, CL '+fmt2(rock.center)+' m, høyre '+fmt2(rock.right)+' m fra planum': 'Ikke aktiv'));
  const ds=dypsprengningState();
  items.push('Dypsprengning: '+(ds.active?ds.min+' mm under planum; møter grøftebunn (uten ekstra dybde), jf. pkt. 4.7':ds.enabled?'Valgt, men ikke aktiv uten gyldig fjellskjæring og mål':'Ikke valgt'));
  items.push('Kilde: Normaler for landbruksveier, versjon 2 mars 2026, tabell '+roadInfo().source+'. Forutsetter faglig kontroll.');
