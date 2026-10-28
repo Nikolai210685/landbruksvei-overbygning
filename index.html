@@ -90,6 +90,48 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
 .credit-box a{color:#c5eaff;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
 .footer-card a{color:var(--accent2);text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
 @media(max-width:560px){.rock-input-grid{grid-template-columns:1fr}}
+
+/* Desktop: inputs follow the page, while the working drawing stays pinned.
+   The results can be scrolled independently in the lower part of the panel. */
+@media (min-width:981px){
+  main{align-items:start}
+  .settings-panel{min-width:0}
+  .result-panel{
+    position:sticky;top:12px;align-self:start;
+    height:calc(100dvh - 24px);max-height:calc(100dvh - 24px);
+    display:flex;flex-direction:column;overflow:hidden;
+    min-width:0;padding:14px 16px;
+  }
+  .result-panel h2{flex:0 0 auto;margin-bottom:9px}
+  .result-panel .svg-wrap{
+    flex:0 0 auto;min-height:0;margin-top:0;
+    border-radius:13px;padding:9px;
+  }
+  .result-panel .svg-title{gap:8px;margin-bottom:2px}
+  .result-panel .svg-title strong{font-size:14px}
+  .result-panel .svg-title .badge{font-size:11px;padding:5px 8px}
+  .result-panel #diagram svg{display:block;width:100%;height:auto;max-height:43dvh}
+  .result-panel #roadWidthInfo{margin:2px 0 0}
+  .result-details{
+    flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+    scrollbar-width:thin;scrollbar-color:#b2cbd9 transparent;
+    margin-top:12px;padding-right:6px;padding-bottom:10px;
+  }
+  .result-details .results{margin-top:0}
+  .result-details .metric{padding:9px 10px}
+  .result-details .metric strong{font-size:20px}
+  .result-details .metric small{font-size:11px}
+  .ditch-results-section h3{margin:16px 0 10px;font-size:15px}
+}
+/* One column on smaller devices: normal page scrolling with no nested scroller. */
+@media (max-width:980px){
+  .result-panel{position:static;max-height:none;height:auto;display:block;overflow:visible}
+  .result-details{overflow:visible;max-height:none}
+}
+@media print{
+  .result-panel{position:static!important;height:auto!important;max-height:none!important;overflow:visible!important;display:block!important}
+  .result-details{overflow:visible!important;max-height:none!important}
+}
 </style>
 </head>
 <body>
@@ -109,7 +151,7 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
 </header>
 
 <main>
-  <section class="panel">
+  <section class="panel settings-panel">
     <h2>1. Prosjekteringsgrunnlag</h2>
 
     <label for="road">Veiklasse</label>
@@ -231,29 +273,33 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
 
   </section>
 
-  <section class="panel">
+  <section class="panel result-panel" aria-label="Resultat og fast illustrasjon">
     <h2>2. Resultat</h2>
-    <div class="results">
+    <div class="svg-wrap">
+      <div class="svg-title">
+        <strong>Prinsippsnitt – overbygning og sideterreng</strong>
+        <span class="badge">Fast illustrasjon · oppdateres automatisk</span>
+      </div>
+      <div id="diagram"></div>
+      <p class="muted" id="roadWidthInfo"></p>
+    </div>
+    <div class="result-details" aria-label="Resultater og detaljer, kan rulles uavhengig av illustrasjonen">
+      <div class="results">
       <div class="metric"><small>Slitelag</small><strong id="wearout">100 mm</strong></div>
       <div class="metric"><small>Bærelag</small><strong id="baseout">250 mm</strong></div>
       <div class="metric"><small>Forsterkningslag</small><strong id="reinforceout">0 mm</strong></div>
       <div class="metric"><small>Sum overbygning</small><strong id="totalout">350 mm</strong></div>
     </div>
-
-    <div class="svg-wrap">
-      <div class="svg-title">
-        <strong>Prinsippsnitt – overbygning og sideterreng</strong>
-        <span class="badge">Illustrasjon oppdateres automatisk</span>
-      </div>
-      <div id="diagram"></div>
-      <p class="muted" id="roadWidthInfo"></p>
-      <div class="results" id="ditchMetrics" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <div class="ditch-results-section">
+        <h3>Grøft</h3>
+        <div class="results" id="ditchMetrics" style="grid-template-columns:repeat(2,minmax(0,1fr))">
         <div class="metric"><small>Grøftedybde under planum</small><strong id="ditchDepthOut">200 mm</strong></div>
         <div class="metric"><small>Bunnbredde</small><strong id="ditchBottomOut">300 mm</strong></div>
         <div class="metric"><small>Grøftebredde ved planum (V/H)</small><strong id="ditchTopOut">1,00 m</strong></div>
         <div class="metric"><small>Grøfteareal under planum (V/H)</small><strong id="ditchAreaOut">0,13 m²</strong></div>
       </div>
-    </div>
+      </div>
+
 
     <div class="note" id="slopeSummary" style="margin:12px 0;">Terreng, helning og materialteksturer for begge sider vises i tegningen.</div>
 
@@ -285,6 +331,7 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
       <button class="secondary" id="copy">Kopier beregning</button>
     </div>
     <p class="muted" id="cadExportInfo">DXF inneholder redigerbare konturer, linjer og tekster fordelt på CAD-lag. SVG bevarer de visuelle materialteksturene. Begge er <strong>prinsippskisser, ikke målfast prosjekteringsgrunnlag</strong>.</p>
+    </div>
   </section>
 </main>
 
