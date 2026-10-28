@@ -289,7 +289,7 @@ const roadInfo=()=>ROAD_INFO[document.getElementById('road').value];
 const baseThickness=()=>roadInfo().table[soil.value][Number(bearing.value)][Number(wear.value)]*10;
 function roadAdvice(){if(document.getElementById('road').value!=='5')return ADVICE[soil.value];
 const v={'1':0,'2':0,'3':0,'4':0,'5':50,'6':150,'7a':300,'7b':null},mm=v[soil.value];
-return {mm,text:mm===null?'Torvmark krever særskilt løsning med geosynteter.':mm===0?'Normalt ikke behov for ekstra forsterkningslag.':'Veiledende forsterkningslag, veiklasse 5: '+mm+' mm.'};}
+return {mm,text:mm===null?'Ikke dimensjonert. Torvmark/myr krever særskilt vurdering av forsterkningslag og geosynteter, jf. Normaler for landbruksveier, pkt. 3.3.10.':mm===0?'Normalt ikke behov for ekstra forsterkningslag.':'Veiledende forsterkningslag, veiklasse 5: '+mm+' mm.'};}
 const SOIL_TEXT={
  '1':'Fjellskjæring og steinfylling',
  '2':'Velgradert grus og sand',
@@ -369,7 +369,7 @@ const ADVICE={
  '5':{mm:100,text:'Vurder 50–100 mm ved behov. 100 mm er foreslått som foreløpig verdi.'},
  '6':{mm:300,text:'Veiledende forsterkningslag: 300 mm.'},
  '7a':{mm:600,text:'Veiledende forsterkningslag: 600 mm. Kontroller bæreevne og anleggsgjennomføring.'},
- '7b':{mm:null,text:'Torvmark/myr krever særskilt vurdering og løsning med geosynteter. Ingen automatisk tykkelse.'}
+ '7b':{mm:null,text:'Ikke dimensjonert. For torvmark/myr må forsterkningslag og geosynteter vurderes særskilt, jf. Normaler for landbruksveier, pkt. 3.3.10.'}
 };
 // Reduksjonstabellen på side 32 i Normaler for landbruksveier,
 // versjon 2 – mars 2026. Intervaller er angitt i millimeter.
@@ -625,15 +625,17 @@ function update(){
  if(group==='7b')reductionNote+=' For torvmark kreves særskilt prosjektering.';
  $('reductionAdvice').textContent=reductionNote;
  $('wearout').textContent='100 mm';$('baseout').textContent=base+' mm';
- $('reinforceout').textContent=extra+' mm';$('totalout').textContent=total+' mm';
+ const torvUnspecified=group==='7b'&&reinforcement.value.trim()==='';
+ $('reinforceout').textContent=torvUnspecified?'Ikke dimensjonert':extra+' mm';
+ $('totalout').textContent=torvUnspecified?'Ikke dimensjonert':total+' mm';
  $('diagram').innerHTML=renderDiagram(base,extra,ditchDraft(),synt);
  $('diagram').setAttribute('data-geosynthetic',synt);
  $('diagram').querySelector('svg')?.setAttribute('aria-description',desc(L)+'. '+desc(R));
  $('summary1').textContent='Veiklasse '+document.getElementById('road').value+'. Bæreevnegruppe '+group+' – '+SOIL_TEXT[group]+'.';
  $('summary2').textContent='Bærelag b-'+'ABCD'[b]+' og slitelag s-'+'AB'[w]+'.';
- $('summary3').textContent='Bærelag '+base+' mm, slitelag 100 mm, forsterkningslag '+reinforcementCalc.original+' − '+reinforcementCalc.reduction+' = '+extra+' mm. Sum '+total+' mm.';
+ $('summary3').textContent=torvUnspecified?'Bærelag '+base+' mm og slitelag 100 mm. Forsterkningslag og samlet overbygning: IKKE DIMENSJONERT (jf. pkt. 3.3.10).':'Bærelag '+base+' mm, slitelag 100 mm, forsterkningslag '+reinforcementCalc.original+' − '+reinforcementCalc.reduction+' = '+extra+' mm. Sum '+total+' mm.';
  $('summary4').textContent='Venstre: '+desc(L)+'. Høyre: '+desc(R)+'. Geosyntet: '+geosynthetic.options[geosynthetic.selectedIndex].text+'.';
- $('warningBox').innerHTML='<strong>Faglig kontroll:</strong> Tabellhelningene er ikke stabilitetsdokumentasjon. Kontroller erosjon, vannmengde og lokale grunnforhold. Skissen er ikke målfast.';
+ $('warningBox').innerHTML=(group==='7b'?'<strong>IKKE DIMENSJONERT – bæreevnegruppe 7b (torvmark/myr):</strong> Normen angir ingen generell forsterkningslagstykkelse. Det kreves særskilt vurdering av overbygning og geosynteter. <strong>Henvisning:</strong> Normaler for landbruksveier, pkt. 3.3.10. Oppgitt total kan ikke brukes som ferdig dimensjonering. ':'')+'<strong>Faglig kontroll:</strong> Tabellhelningene er ikke stabilitetsdokumentasjon. Kontroller erosjon, vannmengde og lokale grunnforhold. Skissen er ikke målfast.';
 }
 ['change','input'].forEach(e=>{soil.addEventListener(e,update);bearing.addEventListener(e,update);wear.addEventListener(e,update);reinforcement.addEventListener(e,update);geosynthetic.addEventListener(e,update);});
 for(const key of ['left','right']){$(key+'Type').addEventListener('change',()=>populateSide(key));$(key+'Material').addEventListener('change',update);}
