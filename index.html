@@ -728,55 +728,60 @@ function svgPathToPolylines(path){
  return result;
 }
 function exportDxfString(){
- // Dimensionally correct design profile: coordinates are millimetres.
- // x=0 is the road centreline, y=0 the crown. Only finished surface is exported.
- // Ditch level is relative to planum at road edge, not the road surface.
- const road=4000, carriage=3500, shoulder=250, crossfall=0.05;
+ // True-scale 2D CAD section, all coordinates in millimetres.
+ // Road width 4000 = carriageway 3500 + shoulders 250 each.
+ const road=4000,carriage=3500,crossfall=.05;
  const base=TABLE[soil.value][Number(bearing.value)][Number(wear.value)]*10;
  const rein=reinforcementDesign().actual;
  const pavement=100+base+(Number.isFinite(rein)?rein:0);
- const d=ditchDraft();
- const inner=Number(ditchInner.value);
- const pairs=[];
- const fmt=x=>String(Number(x.toFixed(5)));
- const add=(...args)=>pairs.push(...args.map(String));
+ const ditch=ditchDraft(),inner=Number(ditchInner.value);
+ const e=[],fmt=n=>String(Number(n.toFixed(5)));
+ const add=(...v)=>e.push(...v.map(String));
  const line=(x1,y1,x2,y2,layer)=>{
-  if(![x1,y1,x2,y2].every(Number.isFinite))throw Error('Ugyldige profilkoordinater');
+  if(![x1,y1,x2,y2].every(Number.isFinite))throw Error('Ugyldige koordinater');
   add(0,'LINE',8,layer,10,fmt(x1),20,fmt(y1),30,0,11,fmt(x2),21,fmt(y2),31,0);
  };
- const edgeY=-road/2*crossfall;
- const laneY=-carriage/2*crossfall;
- // Distinct, exact 3.50 m carriageway and two 0.25 m shoulders.
- line(-road/2,edgeY,-carriage/2,laneY,'SKULDER');
- line(-carriage/2,laneY,0,0,'KJOEREBANE');
- line(0,0,carriage/2,laneY,'KJOEREBANE');
- line(carriage/2,laneY,road/2,edgeY,'SKULDER');
- function side(which){
-  const info=sideInfo(which),sign=which==='left'?-1:1;
-  const xEdge=sign*road/2;
+ const txt=(x,y,value,height=120,layer='TEKST')=>{
+  // ASCII transliterations prevent unsupported Unicode sequences in R12 DXF.
+  add(0,'TEXT',8,layer,10,fmt(x),20,fmt(y),30,0,40,fmt(height),1,value);
+ };
+ const edgeY=-100,laneY=-87.5;
+ line(-2000,edgeY,-1750,laneY,'SKULDER');
+ line(-1750,laneY,0,0,'KJOEREBANE');
+ line(0,0,1750,laneY,'KJOEREBANE');
+ line(1750,laneY,2000,edgeY,'SKULDER');
+ // Only overbygning outline below the finished road surface.
+ // Top is already represented by KJOEREBANE and SKULDER.
+ const planum=edgeY-pavement;
+ line(-2000,edgeY,-2000,planum,'OVERBYGNING');
+ line(-2000,planum,2000,planum,'PLANUM');
+ line(2000,planum,2000,edgeY,'OVERBYGNING');
+ txt(-650,planum+Math.max(35,(pavement-110)/2),'OVERBYGNING '+pavement+' mm',Math.min(110,Math.max(70,pavement*.24)));
+ txt(-850,340,'KJOEREBANE 3500 mm',125);
+ txt(-2000,170,'SKULDER 250 mm',100);
+ txt(1170,170,'SKULDER 250 mm',100);
+ for(const which of ['left','right']){
+  const info=sideInfo(which),sign=which==='left'?-1:1,x=sign*2000;
   if(info.type==='fill'){
-   // Slope is shown for a one-metre vertical drop from the finished edge.
-   const drop=1000;
-   line(xEdge,edgeY,xEdge+sign*drop*info.ratio,edgeY-drop,'FYLLING');
+   const drop=1000,xe=x+sign*drop*info.ratio,ye=edgeY-drop;
+   line(x,edgeY,xe,ye,'FYLLING');
+   txt(Math.min(x,xe)-150,Math.min(edgeY,ye)-220,'FYLLING 1:'+fmt(info.ratio),110);
   }else{
-   if(!d || d.depth<=0 || d.bottom<=0)throw Error('Gyldig grøftedybde og grøftebunnbredde kreves ved skjæring');
-   const bottomY=edgeY-pavement-d.depth;
-   const innerRun=(edgeY-bottomY)*inner;
-   const xInner=xEdge+sign*innerRun;
-   const xOuter=xInner+sign*d.bottom;
-   const rise=1000;
-   line(xEdge,edgeY,xInner,bottomY,'GROEFT_INNSIDE');
-   line(xInner,bottomY,xOuter,bottomY,'GROEFT_BUNN');
-   line(xOuter,bottomY,xOuter+sign*rise*info.ratio,bottomY+rise,'SKJAERING');
+   if(!ditch||ditch.depth<=0||ditch.bottom<=0)throw Error('Kontroller groeftedybde og bunnbredde');
+   // Ditch depth measured beneath planum at road edge.
+   const bottomY=planum-ditch.depth,xi=x+sign*(edgeY-bottomY)*inner,xo=xi+sign*ditch.bottom;
+   line(x,edgeY,xi,bottomY,'GROEFT_INNSIDE');
+   line(xi,bottomY,xo,bottomY,'GROEFT_BUNN');
+   line(xo,bottomY,xo+sign*1000*info.ratio,bottomY+1000,'SKJAERING');
+   txt(Math.min(xi,xo),bottomY-170,'GROEFTBUNN '+ditch.bottom+' mm',95);
   }
  }
- side('left');side('right');
- const layers=[['KJOEREBANE',7],['SKULDER',2],['GROEFT_INNSIDE',4],['GROEFT_BUNN',3],['SKJAERING',5],['FYLLING',6]];
+ const layers=[['KJOEREBANE',7],['SKULDER',2],['OVERBYGNING',30],['PLANUM',8],['GROEFT_INNSIDE',4],['GROEFT_BUNN',3],['SKJAERING',5],['FYLLING',6],['TEKST',7]];
  const header=['0','SECTION','2','HEADER','9','$ACADVER','1','AC1009','9','$MEASUREMENT','70','1','0','ENDSEC'];
  const table=['0','SECTION','2','TABLES','0','TABLE','2','LTYPE','70','1','0','LTYPE','2','CONTINUOUS','70','0','3','Solid line','72','65','73','0','40','0','0','ENDTAB','0','TABLE','2','LAYER','70',String(layers.length)];
  for(const [name,color] of layers)table.push('0','LAYER','2',name,'70','0','62',String(color),'6','CONTINUOUS');
  table.push('0','ENDTAB','0','ENDSEC');
- return [...header,...table,'0','SECTION','2','ENTITIES',...pairs,'0','ENDSEC','0','EOF',''].join('\r\n');
+ return [...header,...table,'0','SECTION','2','ENTITIES',...e,'0','ENDSEC','0','EOF',''].join('\r\n');
 }
 $('saveSvg').addEventListener('click',()=>{
  try{saveTextFile(svgForDownload(),exportFileName('svg'),'image/svg+xml;charset=utf-8');}
