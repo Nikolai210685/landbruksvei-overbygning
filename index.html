@@ -97,7 +97,7 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
     <div class="credit-box" aria-label="Utviklere">
       <div class="eyebrow">Utviklet av</div>
       <div class="name">Nikolai Medvedev</div>
-      <div class="sub">Medutvikler: <strong>Torleif Kildal</strong></div>
+      <div class="name">Torleif Kildal</div>
     </div>
   </div>
 </header>
@@ -273,8 +273,9 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
 
 <footer>
   <div class="footer-card">
-    <div class="signature">Utviklet av Nikolai Medvedev</div>
-    <div class="mini" style="font-size:17px;font-weight:700;color:var(--ink);margin-bottom:8px">Medutvikler: Torleif Kildal</div>
+    <div class="mini" style="font-weight:700;margin-bottom:6px">Utviklet av</div>
+    <div class="signature">Nikolai Medvedev</div>
+    <div class="signature">Torleif Kildal</div>
     <div class="mini">Utviklingsversjon · Veiklasse 2–5 har klassevise tabeller. Ikke et offisielt produkt fra Skogkurs eller en myndighet.</div>
   </div>
 </footer>
@@ -901,7 +902,7 @@ function exportDxfString(){
  line(edgeX,planum,edgeX,edgeY,'OVERBYGNING');
  txt(-650,planum+Math.max(35,(pavement-110)/2),'OVERBYGNING '+pavement+' mm',Math.min(110,Math.max(70,pavement*.24)));
  txt(-850,340,'KJOEREBANE '+carriage+' mm',125);
- txt(-edgeX,planum-1800,'UTVIKLET AV NIKOLAI MEDVEDEV - MEDUTVIKLER TORLEIF KILDAL',100,'TEKST');
+ txt(-edgeX,planum-1800,'UTVIKLET AV NIKOLAI MEDVEDEV OG TORLEIF KILDAL',100,'TEKST');
  txt(-edgeX,170,'SKULDER '+(road-carriage)/2+' mm',100);
  txt(laneX-580,170,'SKULDER '+(road-carriage)/2+' mm',100);
  for(const which of ['left','right']){
@@ -961,7 +962,7 @@ $('copy').addEventListener('click',async()=>{
  const base=baseThickness();
  const reinforcementCalc=reinforcementDesign(),extra=reinforcementCalc.actual;
  const describe=(label,x)=>label+': '+(x.type==='cut'?'Skjæring':'Fylling')+', '+x.material.name+' ('+x.material.v+':'+formatNo(x.material.h)+')'+(x.type==='cut'?', med grøft':', uten grøft');
- const items=['Landbruksvei Overbygningskalkulator','Utviklet av Nikolai Medvedev','Medutvikler: Torleif Kildal','Veiklasse '+document.getElementById('road').value+', bæreevnegruppe '+soil.value,'Slitelag 100 mm','Bærelag '+base+' mm','Forsterkningslag uten geonett '+reinforcementCalc.original+' mm','Reduksjon med geonett '+reinforcementCalc.reduction+' mm','Prosjektert forsterkningslag '+extra+' mm','Geosyntet '+geosynthetic.options[geosynthetic.selectedIndex].text,'Sum '+(100+base+extra)+' mm',describe('Venstre',L),describe('Høyre',R)];
+ const items=['Landbruksvei Overbygningskalkulator','Utviklet av Nikolai Medvedev og Torleif Kildal','Veiklasse '+document.getElementById('road').value+', bæreevnegruppe '+soil.value,'Slitelag 100 mm','Bærelag '+base+' mm','Forsterkningslag uten geonett '+reinforcementCalc.original+' mm','Reduksjon med geonett '+reinforcementCalc.reduction+' mm','Prosjektert forsterkningslag '+extra+' mm','Geosyntet '+geosynthetic.options[geosynthetic.selectedIndex].text,'Sum '+(100+base+extra)+' mm',describe('Venstre',L),describe('Høyre',R)];
  if(d)items.push('Grøfter i skjæring: dybde '+d.depth+' mm, bunnbredde '+d.bottom+' mm');
  const ds=dypsprengningState();
  items.push('Dypsprengning: '+(ds.active?ds.min+' mm under planum; møter grøftebunn (uten ekstra dybde), jf. pkt. 4.7':ds.enabled?'Valgt, men ikke aktiv uten gyldig fjellskjæring og mål':'Ikke valgt'));
