@@ -727,74 +727,56 @@ function svgPathToPolylines(path){
  emit(false);
  return result;
 }
-function exportDxfString(svgElement){
- // Units are intentionally unitless: the schematic has nonuniform depiction
- // of pavement and terrain and MUST NOT be interpreted as dimensioned CAD data.
- const e=[];
- const fmt=n=>Number.isFinite(n)?Number(n.toFixed(5)).toString():'0';
- const add=(...args)=>e.push(...args.map(String));
- const pt=(matrix,x,y)=>{
-  const xx=matrix[0]*x+matrix[2]*y+matrix[4];
-  const yy=matrix[1]*x+matrix[3]*y+matrix[5];
-  return [xx,590-yy];
+function exportDxfString(){
+ // Dimensionally correct design profile: coordinates are millimetres.
+ // x=0 is the road centreline, y=0 the crown. Only finished surface is exported.
+ // Ditch level is relative to planum at road edge, not the road surface.
+ const road=4000, carriage=3500, shoulder=250, crossfall=0.05;
+ const base=TABLE[soil.value][Number(bearing.value)][Number(wear.value)]*10;
+ const rein=reinforcementDesign().actual;
+ const pavement=100+base+(Number.isFinite(rein)?rein:0);
+ const d=ditchDraft();
+ const inner=Number(ditchInner.value);
+ const pairs=[];
+ const fmt=x=>String(Number(x.toFixed(5)));
+ const add=(...args)=>pairs.push(...args.map(String));
+ const line=(x1,y1,x2,y2,layer)=>{
+  if(![x1,y1,x2,y2].every(Number.isFinite))throw Error('Ugyldige profilkoordinater');
+  add(0,'LINE',8,layer,10,fmt(x1),20,fmt(y1),30,0,11,fmt(x2),21,fmt(y2),31,0);
  };
- const line=(a,b,layer)=>{
-  if(Math.hypot(a[0]-b[0],a[1]-b[1])<.001)return;
-  add(0,'LINE',8,layer,10,fmt(a[0]),20,fmt(a[1]),30,0,11,fmt(b[0]),21,fmt(b[1]),31,0);
- };
- const poly=(points,closed,layer)=>{
-  if(points.length<2)return;
-  if(points.length===2){line(points[0],points[1],layer);return;}
-  // R12 POLYLINE/VERTEX entities are accepted by modern AutoCAD
-  // without the subclass records and object tables required by later DXF versions.
-  add(0,'POLYLINE',8,layer,66,1,10,0,20,0,30,0,70,closed?1:0);
-  for(const p of points)add(0,'VERTEX',8,layer,10,fmt(p[0]),20,fmt(p[1]),30,0,70,0);
-  add(0,'SEQEND',8,layer);
- };
- const unicodeDxf=t=>String(t).replace(/[\r\n]+/g,' ').replace(/[^\x20-\x7E]/g,c=>{
-  const hex=c.codePointAt(0).toString(16).toUpperCase().padStart(4,'0');
-  return '\\U+'+hex;
- });
- const walk=(node,matrix)=>{
-  if(node.nodeType!==1)return;
-  const tag=node.tagName.toLowerCase();
-  if(tag==='defs'||tag==='pattern'||tag==='title'||tag==='desc')return;
-  const m=matMultiply(matrix,svgTransform(node.getAttribute('transform')));
-  const num=(key,def=0)=>Number(node.getAttribute(key)??def);
-  const layer=cadLayer(node);
-  if(tag==='path'){
-   const paths=svgPathToPolylines(node.getAttribute('d'));
-   paths.forEach(p=>poly(p.points.map(v=>pt(m,v[0],v[1])),p.closed,layer));
-  }else if(tag==='line'){
-   line(pt(m,num('x1'),num('y1')),pt(m,num('x2'),num('y2')),layer);
-  }else if(tag==='rect'){
-   const x=num('x'),y=num('y'),w=num('width'),h=num('height');
-   poly([[x,y],[x+w,y],[x+w,y+h],[x,y+h]].map(p=>pt(m,p[0],p[1])),true,layer);
-  }else if(tag==='circle'){
-   const p=pt(m,num('cx'),num('cy'));
-   add(0,'CIRCLE',8,layer,10,fmt(p[0]),20,fmt(p[1]),30,0,40,fmt(num('r')*Math.hypot(m[0],m[1])));
-  }else if(tag==='text'){
-   const t=(node.textContent||'').trim();
-   if(t){
-    const pos=pt(m,num('x'),num('y'));
-    const deg=-Math.atan2(m[1],m[0])*180/Math.PI;
-    const size=num('font-size',15)*.85*Math.hypot(m[0],m[1]);
-    const centered=node.getAttribute('text-anchor')==='middle';
-    add(0,'TEXT',8,'TEKST',10,fmt(pos[0]),20,fmt(pos[1]),30,0,40,fmt(size),1,unicodeDxf(t),50,fmt(deg));
-    if(centered)add(72,1,11,fmt(pos[0]),21,fmt(pos[1]),31,0);
-   }
+ const edgeY=-road/2*crossfall;
+ const laneY=-carriage/2*crossfall;
+ // Distinct, exact 3.50 m carriageway and two 0.25 m shoulders.
+ line(-road/2,edgeY,-carriage/2,laneY,'SKULDER');
+ line(-carriage/2,laneY,0,0,'KJOEREBANE');
+ line(0,0,carriage/2,laneY,'KJOEREBANE');
+ line(carriage/2,laneY,road/2,edgeY,'SKULDER');
+ function side(which){
+  const info=sideInfo(which),sign=which==='left'?-1:1;
+  const xEdge=sign*road/2;
+  if(info.type==='fill'){
+   // Slope is shown for a one-metre vertical drop from the finished edge.
+   const drop=1000;
+   line(xEdge,edgeY,xEdge+sign*drop*info.ratio,edgeY-drop,'FYLLING');
+  }else{
+   if(!d || d.depth<=0 || d.bottom<=0)throw Error('Gyldig grøftedybde og grøftebunnbredde kreves ved skjæring');
+   const bottomY=edgeY-pavement-d.depth;
+   const innerRun=(edgeY-bottomY)*inner;
+   const xInner=xEdge+sign*innerRun;
+   const xOuter=xInner+sign*d.bottom;
+   const rise=1000;
+   line(xEdge,edgeY,xInner,bottomY,'GROEFT_INNSIDE');
+   line(xInner,bottomY,xOuter,bottomY,'GROEFT_BUNN');
+   line(xOuter,bottomY,xOuter+sign*rise*info.ratio,bottomY+rise,'SKJAERING');
   }
-  for(const child of node.children||[])walk(child,m);
- };
- walk(svgElement,matIdentity());
- // Add unambiguous warning directly in the CAD model.
- add(0,'TEXT',8,'ANNOTASJON',10,260,20,16,30,0,40,20,1,'PRINSIPPSKISSE - IKKE MAALFAST / NOT TO SCALE');
- add(0,'TEXT',8,'ANNOTASJON',10,260,20,42,30,0,40,14,1,'Utviklet av Nikolai Medvedev - Veiklasse 3');
- const header=['0','SECTION','2','HEADER','9','$ACADVER','1','AC1009','9','$INSUNITS','70','0','9','$MEASUREMENT','70','1','0','ENDSEC'];
- const layers=['0','SECTION','2','TABLES','0','TABLE','2','LAYER','70',String(Object.keys(DXF_LAYERS).length)];
- for(const [name,color] of Object.entries(DXF_LAYERS))layers.push('0','LAYER','2',name,'70','0','62',String(color),'6','CONTINUOUS');
- layers.push('0','ENDTAB','0','ENDSEC');
- return [...header,...layers,'0','SECTION','2','ENTITIES',...e,'0','ENDSEC','0','EOF',''].join('\r\n');
+ }
+ side('left');side('right');
+ const layers=[['KJOEREBANE',7],['SKULDER',2],['GROEFT_INNSIDE',4],['GROEFT_BUNN',3],['SKJAERING',5],['FYLLING',6]];
+ const header=['0','SECTION','2','HEADER','9','$ACADVER','1','AC1009','9','$MEASUREMENT','70','1','0','ENDSEC'];
+ const table=['0','SECTION','2','TABLES','0','TABLE','2','LTYPE','70','1','0','LTYPE','2','CONTINUOUS','70','0','3','Solid line','72','65','73','0','40','0','0','ENDTAB','0','TABLE','2','LAYER','70',String(layers.length)];
+ for(const [name,color] of layers)table.push('0','LAYER','2',name,'70','0','62',String(color),'6','CONTINUOUS');
+ table.push('0','ENDTAB','0','ENDSEC');
+ return [...header,...table,'0','SECTION','2','ENTITIES',...pairs,'0','ENDSEC','0','EOF',''].join('\r\n');
 }
 $('saveSvg').addEventListener('click',()=>{
  try{saveTextFile(svgForDownload(),exportFileName('svg'),'image/svg+xml;charset=utf-8');}
