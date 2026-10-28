@@ -745,8 +745,11 @@ function exportDxfString(svgElement){
  const poly=(points,closed,layer)=>{
   if(points.length<2)return;
   if(points.length===2){line(points[0],points[1],layer);return;}
-  add(0,'LWPOLYLINE',8,layer,90,points.length,70,closed?1:0);
-  for(const p of points)add(10,fmt(p[0]),20,fmt(p[1]));
+  // R12 POLYLINE/VERTEX entities are accepted by modern AutoCAD
+  // without the subclass records and object tables required by later DXF versions.
+  add(0,'POLYLINE',8,layer,66,1,10,0,20,0,30,0,70,closed?1:0);
+  for(const p of points)add(0,'VERTEX',8,layer,10,fmt(p[0]),20,fmt(p[1]),30,0,70,0);
+  add(0,'SEQEND',8,layer);
  };
  const unicodeDxf=t=>String(t).replace(/[\r\n]+/g,' ').replace(/[^\x20-\x7E]/g,c=>{
   const hex=c.codePointAt(0).toString(16).toUpperCase().padStart(4,'0');
@@ -787,7 +790,7 @@ function exportDxfString(svgElement){
  // Add unambiguous warning directly in the CAD model.
  add(0,'TEXT',8,'ANNOTASJON',10,260,20,16,30,0,40,20,1,'PRINSIPPSKISSE - IKKE MAALFAST / NOT TO SCALE');
  add(0,'TEXT',8,'ANNOTASJON',10,260,20,42,30,0,40,14,1,'Utviklet av Nikolai Medvedev - Veiklasse 3');
- const header=['0','SECTION','2','HEADER','9','$ACADVER','1','AC1021','9','$INSUNITS','70','0','9','$MEASUREMENT','70','1','0','ENDSEC'];
+ const header=['0','SECTION','2','HEADER','9','$ACADVER','1','AC1009','9','$INSUNITS','70','0','9','$MEASUREMENT','70','1','0','ENDSEC'];
  const layers=['0','SECTION','2','TABLES','0','TABLE','2','LAYER','70',String(Object.keys(DXF_LAYERS).length)];
  for(const [name,color] of Object.entries(DXF_LAYERS))layers.push('0','LAYER','2',name,'70','0','62',String(color),'6','CONTINUOUS');
  layers.push('0','ENDTAB','0','ENDSEC');
