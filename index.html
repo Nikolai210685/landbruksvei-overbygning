@@ -525,10 +525,17 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
      : `M${cx} ${py-crown} L${root} ${py} L${inside} ${yB} H${outside} V${ditchLevel} H${inside} L${root} ${roadLevel} L${cx} ${centreLevel} Z`;
    // A polygon only exists at/below the actual boundary, with no extension onto fill.
    const rockFill=side.material.id==='looserock'?'rockLoose':'rockSolid';
+   // Keep the ditch excavation visually empty: no bedrock or blasted-mass
+   // textures inside the open ditch. The last point follows the outer cut
+   // face exactly where it crosses planum.
+   const cutAtPlanum=outside+(crest-outside)*(yB-py)/(yB-yCrest);
+   const ditchVoid=`M${root} ${py} L${inside} ${yB} H${outside} L${cutAtPlanum} ${py} Z`;
    const depthMark=(inside+outside)/2;
    const boxX=Math.max(15,Math.min(1205,depthMark-140));
    return `<path data-ground="${key}-rock" d="${rockPolygon}" fill="url(#${rockFill})" stroke="none"/>
    ${dyp.active?`<path data-excavated-zone="${key}" d="${excavatedBand}" fill="url(#rockLoose)" stroke="none"/>`:''}
+   <!-- The open grøft is above solid rock and must not show any texture. -->
+   <path data-ditch-clear="${key}" d="${ditchVoid}" fill="#f5f9fb" stroke="none"/>
    <path d="M${crest} ${yCrest} L${outside} ${yB}" stroke="#334655" stroke-width="3" fill="none"/>
    <path d="M${root} ${py} L${inside} ${yB} H${outside}" stroke="#157ca2" stroke-width="3.5" fill="none" stroke-linejoin="round"/>
    <g data-ditch-depth="${key}" aria-label="Grøftedybde ${fmt2(dep/1000)} meter under planum">
