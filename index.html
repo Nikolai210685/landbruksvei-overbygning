@@ -105,9 +105,9 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
     <label for="road">Veiklasse</label>
     <select id="road">
       <option value="3">Veiklasse 3 – Standardvei</option>
-      <option value="2" disabled>Veiklasse 2 – kommer senere</option>
-      <option value="4" disabled>Veiklasse 4 – kommer senere</option>
-      <option value="5" disabled>Veiklasse 5 – kommer senere</option>
+      <option value="2">Veiklasse 2 – kommer senere</option>
+      <option value="4">Veiklasse 4 – kommer senere</option>
+      <option value="5">Veiklasse 5 – kommer senere</option>
     </select>
 
     <label for="soil">Bæreevnegruppe i underbygningen</label>
@@ -196,7 +196,7 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
     <p class="muted">Ved skjæring får overbygningens side og grøft mot veg samme helning. Ved fylling følger overbygningens side fyllingsskråningen. Ytre skjæringsskråning følger valgt materiale.</p>
     <div class="note" id="ditchAdvice"></div>
 <div class="note">
-      <strong>Tabellgrunnlag:</strong> Veiklasse 3 er aktivert og kontrollert mot tabell 3.2. Slitelag er satt til 100 mm i henhold til normen. Forsterkningslag prosjekteres ved behov.
+      <strong>Tabellgrunnlag:</strong> Veiklasse 2–5 er aktivert med tabell 3.1–3.4. Slitelag er satt til 100 mm i henhold til normen. Forsterkningslag prosjekteres ved behov.
     </div>
 
   </section>
@@ -212,7 +212,7 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
 
     <div class="svg-wrap">
       <div class="svg-title">
-        <strong>Prinsippsnitt – veiklasse 3, overbygning og sideterreng</strong>
+        <strong>Prinsippsnitt – overbygning og sideterreng</strong>
         <span class="badge">Illustrasjon oppdateres automatisk</span>
       </div>
       <div id="diagram"></div>
@@ -260,7 +260,7 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
 
 <footer>
   <div class="footer-card">
-    <div class="mini">Utviklingsversjon · Kun veiklasse 3 er aktivert og kontrollert mot tabellgrunnlaget. Ikke et offisielt produkt fra Skogkurs eller en myndighet.</div>
+    <div class="mini">Utviklingsversjon · Veiklasse 2–5 har klassevise tabeller. Ikke et offisielt produkt fra Skogkurs eller en myndighet.</div>
   </div>
 </footer>
 
@@ -276,6 +276,20 @@ const TABLE={
  '7a':[[55,55],[70,75],[95,100],[125,130]],
  '7b':[[55,55],[70,75],[95,100],[125,130]]
 };
+const TABLE_2={
+'1':[[15,15],[15,20],[25,25],[30,35]],'2':[[20,20],[25,25],[30,35],[45,50]],'3':[[25,25],[30,35],[40,45],[55,60]],'4':[[30,30],[40,40],[55,65],[70,75]],'5':[[35,40],[45,50],[65,70],[85,90]],'6':[[45,50],[60,65],[80,85],[105,110]],'7a':[[55,60],[70,75],[100,105],[135,140]],'7b':[[55,60],[70,75],[100,105],[135,140]]};
+const TABLE_5={
+'1':[[10,10],[10,10],[10,15],[15,20]],'2':[[10,15],[15,15],[20,25],[25,30]],'3':[[15,20],[20,25],[30,30],[35,45]],'4':[[20,25],[25,30],[35,40],[50,55]],'5':[[25,30],[35,35],[45,50],[65,70]],'6':[[30,35],[40,45],[55,60],[75,80]],'7a':[[40,45],[55,60],[75,80],[100,105]],'7b':[[40,45],[55,60],[75,80],[100,105]]};
+const ROAD_INFO={
+'2':{width:4500,carriage:3500,table:TABLE_2,source:'3.1',title:'Helårsvei'},
+'3':{width:4000,carriage:3500,table:TABLE,source:'3.2',title:'Standardvei'},
+'4':{width:4000,carriage:3500,table:TABLE,source:'3.3',title:'Barmarksvei'},
+'5':{width:4000,carriage:3500,table:TABLE_5,source:'3.4',title:'Barmarksvei uten henger'}};
+const roadInfo=()=>ROAD_INFO[document.getElementById('road').value];
+const baseThickness=()=>roadInfo().table[soil.value][Number(bearing.value)][Number(wear.value)]*10;
+function roadAdvice(){if(document.getElementById('road').value!=='5')return ADVICE[soil.value];
+const v={'1':0,'2':0,'3':0,'4':0,'5':50,'6':150,'7a':300,'7b':null},mm=v[soil.value];
+return {mm,text:mm===null?'Torvmark krever særskilt løsning med geosynteter.':mm===0?'Normalt ikke behov for ekstra forsterkningslag.':'Veiledende forsterkningslag, veiklasse 5: '+mm+' mm.'};}
 const SOIL_TEXT={
  '1':'Fjellskjæring og steinfylling',
  '2':'Velgradert grus og sand',
@@ -378,7 +392,7 @@ function reinforcementDesign(){
  return {original,reduction,actual:Math.max(0,original-reduction),geonett,useTable};
 }
 function applyAdvice(){
- const a=ADVICE[soil.value];
+ const a=roadAdvice();
  reinforcement.value=a.mm===null?'':String(a.mm);
  update();
 }
@@ -387,7 +401,7 @@ function esc(s){return String(s).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">
 
 function renderDiagram(baseMm,extraMm,ditch,synt){
  const L=sideInfo('left'),R=sideInfo('right'),cx=750,half=210,py=310,baseEarth=510;
- const roadWidthM=4,carriageM=3.5,shoulderM=.25,crossfall=.05;
+ const roadWidthM=roadInfo().width/1000,carriageM=3.5,shoulderM=(roadWidthM-carriageM)/2,crossfall=.05;
  const crown=half*crossfall,carriageHalf=half*carriageM/roadWidthM;
  const total=100+baseMm+extraMm,m=Number(ditchInner.value),dep=ditch?ditch.depth:0,bot=ditch?ditch.bottom:0;
  const mLeft=L.type==='fill'?L.ratio:m,mRight=R.type==='fill'?R.ratio:m;
@@ -583,9 +597,9 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  </svg>`;
 }
 function update(){
- const group=soil.value,b=Number(bearing.value),w=Number(wear.value),base=TABLE[group][b][w]*10;
+ const group=soil.value,b=Number(bearing.value),w=Number(wear.value),base=baseThickness();
  const reinforcementCalc=reinforcementDesign(),extra=reinforcementCalc.actual;
- const L=sideInfo('left'),R=sideInfo('right'),synt=geosynthetic.value,a=ADVICE[group],total=100+base+extra;
+ const L=sideInfo('left'),R=sideInfo('right'),synt=geosynthetic.value,a=roadAdvice(),total=100+base+extra;
  const desc=x=>(x.type==='cut'?'Skjæring':'Fylling')+' '+x.material.name+' ('+x.material.v+':'+formatNo(x.material.h)+')';
  $('leftHelp').textContent=desc(L)+(L.type==='cut'?' · med grøft':' · uten grøft');
  $('rightHelp').textContent=desc(R)+(R.type==='cut'?' · med grøft':' · uten grøft');
@@ -615,7 +629,7 @@ function update(){
  $('diagram').innerHTML=renderDiagram(base,extra,ditchDraft(),synt);
  $('diagram').setAttribute('data-geosynthetic',synt);
  $('diagram').querySelector('svg')?.setAttribute('aria-description',desc(L)+'. '+desc(R));
- $('summary1').textContent='Veiklasse 3. Bæreevnegruppe '+group+' – '+SOIL_TEXT[group]+'.';
+ $('summary1').textContent='Veiklasse '+document.getElementById('road').value+'. Bæreevnegruppe '+group+' – '+SOIL_TEXT[group]+'.';
  $('summary2').textContent='Bærelag b-'+'ABCD'[b]+' og slitelag s-'+'AB'[w]+'.';
  $('summary3').textContent='Bærelag '+base+' mm, slitelag 100 mm, forsterkningslag '+reinforcementCalc.original+' − '+reinforcementCalc.reduction+' = '+extra+' mm. Sum '+total+' mm.';
  $('summary4').textContent='Venstre: '+desc(L)+'. Høyre: '+desc(R)+'. Geosyntet: '+geosynthetic.options[geosynthetic.selectedIndex].text+'.';
@@ -626,6 +640,7 @@ for(const key of ['left','right']){$(key+'Type').addEventListener('change',()=>p
 ditchCondition.addEventListener('change',applyDitchCondition);ditchDepth.addEventListener('input',update);ditchBottom.addEventListener('input',update);ditchInner.addEventListener('change',update);
 useGeonettReduction.addEventListener('change',update);
 soil.addEventListener('change',applyAdvice);
+document.getElementById('road').addEventListener('change',applyAdvice);
 // Browser-only SVG and CAD exchange. SVG coordinates are illustrative, not real survey units.
 function svgForDownload(){
  const svg=$('diagram').querySelector('svg');
@@ -648,7 +663,7 @@ function saveTextFile(textValue,fileName,mime){
  setTimeout(()=>URL.revokeObjectURL(url),2000);
 }
 function exportFileName(ext){
- return 'landbruksvei-vk3-bg'+soil.value+'-'+geosynthetic.value+'.'+ext;
+ return 'landbruksvei-vk'+document.getElementById('road').value+'-bg'+soil.value+'-'+geosynthetic.value+'.'+ext;
 }
 const DXF_LAYERS={
  KANTER:7,SLITELAG:30,BAERELAG:8,FORSTERKNING:9,
@@ -730,8 +745,8 @@ function svgPathToPolylines(path){
 function exportDxfString(){
  // True-scale 2D CAD section, all coordinates in millimetres.
  // Road width 4000 = carriageway 3500 + shoulders 250 each.
- const road=4000,carriage=3500,crossfall=.05;
- const base=TABLE[soil.value][Number(bearing.value)][Number(wear.value)]*10;
+ const road=roadInfo().width,carriage=roadInfo().carriage,crossfall=.05;
+ const base=baseThickness();
  const rein=reinforcementDesign().actual;
  const pavement=100+base+(Number.isFinite(rein)?rein:0);
  const ditch=ditchDraft(),inner=Number(ditchInner.value);
@@ -745,23 +760,23 @@ function exportDxfString(){
   // ASCII transliterations prevent unsupported Unicode sequences in R12 DXF.
   add(0,'TEXT',8,layer,10,fmt(x),20,fmt(y),30,0,40,fmt(height),1,value);
  };
- const edgeY=-100,laneY=-87.5;
- line(-2000,edgeY,-1750,laneY,'SKULDER');
- line(-1750,laneY,0,0,'KJOEREBANE');
- line(0,0,1750,laneY,'KJOEREBANE');
- line(1750,laneY,2000,edgeY,'SKULDER');
+ const edgeX=road/2,laneX=carriage/2,edgeY=-edgeX*crossfall,laneY=-laneX*crossfall;
+ line(-edgeX,edgeY,-laneX,laneY,'SKULDER');
+ line(-laneX,laneY,0,0,'KJOEREBANE');
+ line(0,0,laneX,laneY,'KJOEREBANE');
+ line(laneX,laneY,edgeX,edgeY,'SKULDER');
  // Only overbygning outline below the finished road surface.
  // Top is already represented by KJOEREBANE and SKULDER.
  const planum=edgeY-pavement;
- line(-2000,edgeY,-2000,planum,'OVERBYGNING');
- line(-2000,planum,2000,planum,'PLANUM');
- line(2000,planum,2000,edgeY,'OVERBYGNING');
+ line(-edgeX,edgeY,-edgeX,planum,'OVERBYGNING');
+ line(-edgeX,planum,edgeX,planum,'PLANUM');
+ line(edgeX,planum,edgeX,edgeY,'OVERBYGNING');
  txt(-650,planum+Math.max(35,(pavement-110)/2),'OVERBYGNING '+pavement+' mm',Math.min(110,Math.max(70,pavement*.24)));
- txt(-850,340,'KJOEREBANE 3500 mm',125);
- txt(-2000,170,'SKULDER 250 mm',100);
- txt(1170,170,'SKULDER 250 mm',100);
+ txt(-850,340,'KJOEREBANE '+carriage+' mm',125);
+ txt(-edgeX,170,'SKULDER '+(road-carriage)/2+' mm',100);
+ txt(laneX-580,170,'SKULDER '+(road-carriage)/2+' mm',100);
  for(const which of ['left','right']){
-  const info=sideInfo(which),sign=which==='left'?-1:1,x=sign*2000;
+  const info=sideInfo(which),sign=which==='left'?-1:1,x=sign*edgeX;
   if(info.type==='fill'){
    const drop=1000,xe=x+sign*drop*info.ratio,ye=edgeY-drop;
    line(x,edgeY,xe,ye,'FYLLING');
@@ -798,12 +813,12 @@ $('saveDxf').addEventListener('click',()=>{
 $('print').addEventListener('click',()=>window.print());
 $('copy').addEventListener('click',async()=>{
  const L=sideInfo('left'),R=sideInfo('right'),d=ditchDraft();
- const base=TABLE[soil.value][Number(bearing.value)][Number(wear.value)]*10;
+ const base=baseThickness();
  const reinforcementCalc=reinforcementDesign(),extra=reinforcementCalc.actual;
  const describe=(label,x)=>label+': '+(x.type==='cut'?'Skjæring':'Fylling')+', '+x.material.name+' ('+x.material.v+':'+formatNo(x.material.h)+')'+(x.type==='cut'?', med grøft':', uten grøft');
- const items=['Landbruksvei Overbygningskalkulator','Utviklet av Nikolai Medvedev','Veiklasse 3, bæreevnegruppe '+soil.value,'Slitelag 100 mm','Bærelag '+base+' mm','Forsterkningslag uten geonett '+reinforcementCalc.original+' mm','Reduksjon med geonett '+reinforcementCalc.reduction+' mm','Prosjektert forsterkningslag '+extra+' mm','Geosyntet '+geosynthetic.options[geosynthetic.selectedIndex].text,'Sum '+(100+base+extra)+' mm',describe('Venstre',L),describe('Høyre',R)];
+ const items=['Landbruksvei Overbygningskalkulator','Utviklet av Nikolai Medvedev','Veiklasse '+document.getElementById('road').value+', bæreevnegruppe '+soil.value,'Slitelag 100 mm','Bærelag '+base+' mm','Forsterkningslag uten geonett '+reinforcementCalc.original+' mm','Reduksjon med geonett '+reinforcementCalc.reduction+' mm','Prosjektert forsterkningslag '+extra+' mm','Geosyntet '+geosynthetic.options[geosynthetic.selectedIndex].text,'Sum '+(100+base+extra)+' mm',describe('Venstre',L),describe('Høyre',R)];
  if(d)items.push('Grøfter i skjæring: dybde '+d.depth+' mm, bunnbredde '+d.bottom+' mm');
- items.push('Kilde: Normaler for landbruksveier, versjon 2 mars 2026. Forutsetter faglig kontroll.');
+ items.push('Kilde: Normaler for landbruksveier, versjon 2 mars 2026, tabell '+roadInfo().source+'. Forutsetter faglig kontroll.');
  try{await navigator.clipboard.writeText(items.join('\n'));$('copy').textContent='Kopiert!';setTimeout(()=>$('copy').textContent='Kopier beregning',1800);}
  catch(e){alert('Kunne ikke kopiere. Bruk Skriv ut / PDF.');}
 });
