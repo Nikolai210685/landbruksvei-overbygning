@@ -383,7 +383,7 @@ const ROAD_INFO={
 '4':{width:4000,carriage:3500,table:TABLE,source:'3.3',title:'Barmarksvei'},
 '5':{width:4000,carriage:3500,table:TABLE_5,source:'3.4',title:'Barmarksvei uten henger'}};
 const roadInfo=()=>ROAD_INFO[document.getElementById('road').value];
-const usageMode=$('usageMode'),class5Extra=$('class5Extra');
+const usageMode=document.getElementById('usageMode'),class5Extra=document.getElementById('class5Extra');
 const weakUsage=()=>usageMode.value==='weak';
 const reinforcementNormSection=()=> '3.'+document.getElementById('road').value+'.10';
 const bearingNormSection=()=> '3.'+document.getElementById('road').value+'.11';
@@ -995,7 +995,7 @@ function saveTextFile(textValue,fileName,mime){
  setTimeout(()=>URL.revokeObjectURL(url),2000);
 }
 function exportFileName(ext){
- return 'landbruksvei-vk'+document.getElementById('road').value+'-bg'+soil.value+'-'+geosynthetic.value+'.'+ext;
+ return 'landbruksvei-vk'+document.getElementById('road').value+'-bg'+soil.value+'-'+(weakUsage()?'baeresvak':'normal')+'-'+geosynthetic.value+'.'+ext;
 }
 const DXF_LAYERS={
  KANTER:7,SLITELAG:30,BAERELAG:8,FORSTERKNING:9,
@@ -1078,7 +1078,7 @@ function exportDxfString(){
  // True-scale 2D CAD section, all coordinates in millimetres.
  // Road width 4000 = carriageway 3500 + shoulders 250 each.
  const road=roadInfo().width,carriage=roadInfo().carriage,crossfall=.05;
- const base=baseThickness();
+ const base=baseThickness(),design=baseDesign();
  const rein=reinforcementDesign().actual;
  const pavement=100+base+(Number.isFinite(rein)?rein:0);
  const ditch=ditchDraft(),inner=Number(ditchInner.value),dyp=dypsprengningState(),rock=rockProfileState();
@@ -1107,6 +1107,7 @@ function exportDxfString(){
  line(edgeX,planum,edgeX,edgeY,'OVERBYGNING');
  txt(-650,planum+Math.max(35,(pavement-110)/2),'OVERBYGNING '+pavement+' mm',Math.min(110,Math.max(70,pavement*.24)));
  txt(-850,340,'KJOEREBANE '+carriage+' mm',125);
+ txt(-edgeX,490,'BAERELAG: TABELL '+design.source+(design.plus?' + '+design.plus+' MM':'')+' / '+(design.weak?'BAERESVAKE PERIODER':'NORMALBRUK'),95,'TEKST');
  txt(-edgeX,planum-1800,'UTVIKLET AV NIKOLAI MEDVEDEV OG TORLEIF KILDAL',100,'TEKST');
  txt(-edgeX,170,'SKULDER '+(road-carriage)/2+' mm',100);
  txt(laneX-580,170,'SKULDER '+(road-carriage)/2+' mm',100);
@@ -1189,13 +1190,14 @@ $('copy').addEventListener('click',async()=>{
  const base=baseThickness();
  const reinforcementCalc=reinforcementDesign(),extra=reinforcementCalc.actual;
  const describe=(label,x)=>label+': '+(x.type==='cut'?'Skjæring':'Fylling')+', '+x.material.name+' ('+x.material.v+':'+formatNo(x.material.h)+')'+(x.type==='cut'?', med grøft':', uten grøft');
- const items=['Landbruksvei Overbygningskalkulator','Utviklet av Nikolai Medvedev og Torleif Kildal','Kontakt: mednikvas@gmail.com','Veiklasse '+document.getElementById('road').value+', bæreevnegruppe '+soil.value,'Slitelag 100 mm','Bærelag '+base+' mm','Forsterkningslag uten geonett '+reinforcementCalc.original+' mm','Reduksjon med geonett '+reinforcementCalc.reduction+' mm','Prosjektert forsterkningslag '+extra+' mm','Geosyntet '+geosynthetic.options[geosynthetic.selectedIndex].text,'Sum '+(100+base+extra)+' mm',describe('Venstre',L),describe('Høyre',R)];
+ const design=baseDesign();
+ const items=['Landbruksvei Overbygningskalkulator','Utviklet av Nikolai Medvedev og Torleif Kildal','Kontakt: mednikvas@gmail.com','Veiklasse '+document.getElementById('road').value+', bæreevnegruppe '+soil.value,'Bruksforutsetning: '+(design.weak?'Bæresvake perioder / høy fuktighet':'Normalbruk'),'Bærelagstabell: '+design.source+', tabellverdi '+design.tableBase+' mm, tillegg '+design.plus+' mm','Slitelag 100 mm','Bærelag '+base+' mm','Forsterkningslag uten geonett '+reinforcementCalc.original+' mm','Reduksjon med geonett '+reinforcementCalc.reduction+' mm','Prosjektert forsterkningslag '+extra+' mm','Geosyntet '+geosynthetic.options[geosynthetic.selectedIndex].text,'Sum '+(100+base+extra)+' mm',describe('Venstre',L),describe('Høyre',R)];
  if(d)items.push('Grøfter i skjæring: dybde '+d.depth+' mm, bunnbredde '+d.bottom+' mm');
  const rock=rockProfileState();
  items.push('Fjellprofil: '+(rock.active?'venstre '+fmt2(rock.left)+' m, CL '+fmt2(rock.center)+' m, høyre '+fmt2(rock.right)+' m fra planum': 'Ikke aktiv'));
  const ds=dypsprengningState();
  items.push('Dypsprengning: '+(ds.active?ds.min+' mm under planum; møter grøftebunn (uten ekstra dybde), jf. pkt. 4.7':ds.enabled?'Valgt, men ikke aktiv uten gyldig fjellskjæring og mål':'Ikke valgt'));
- items.push('Kilde: Normaler for landbruksveier, versjon 2 mars 2026, tabell '+roadInfo().source+'. Forutsetter faglig kontroll.');
+ items.push('Kilde: Normaler for landbruksveier, versjon 2 mars 2026, tabell '+design.source+'. Forsterkningslag: pkt. '+reinforcementNormSection()+'. Forutsetter faglig kontroll.');
  try{await navigator.clipboard.writeText(items.join('\n'));$('copy').textContent='Kopiert!';setTimeout(()=>$('copy').textContent='Kopier beregning',1800);}
  catch(e){alert('Kunne ikke kopiere. Bruk Skriv ut / PDF.');}
 });
