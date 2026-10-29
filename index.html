@@ -385,6 +385,7 @@ const ROAD_INFO={
 const roadInfo=()=>ROAD_INFO[document.getElementById('road').value];
 const usageMode=document.getElementById('usageMode'),class5Extra=document.getElementById('class5Extra');
 const weakUsage=()=>usageMode.value==='weak';
+const usageLabel=()=>document.getElementById('road').value==='2'?'Helårsbruk':weakUsage()?'Bæresvake perioder':'Normalbruk';
 const reinforcementNormSection=()=> '3.'+document.getElementById('road').value+'.10';
 const bearingNormSection=()=> '3.'+document.getElementById('road').value+'.11';
 function baseDesign(){
@@ -402,8 +403,8 @@ function updateUsageAdvice(){
  let msg='';
  if(klass==='2')msg=weak?'Veiklasse 2 er allerede dimensjonert for helårsbruk. Ingen tillegg kreves fra dette valget (pkt. 3.2.11).':'Veiklasse 2 dimensjoneres for helårsbruk med tabell 3.1.';
  else if(!weak)msg='Normalbruk: tabell '+d.source+'. Bruk i bæresvake perioder krever sterkere dimensjonering.';
- else if(klass==='3'||klass==='4')msg='Bæresvake perioder: bærelag beregnes med tabell 3.1 (veiklasse 2) i stedet for tabell 3.'+klass+' (pkt. 3.'+klass+'.11). Valgt veiklasse og veigeometri beholdes.';
- else msg='Bæresvake perioder: '+d.tableBase+' mm fra tabell 3.4 + '+d.plus+' mm = '+d.total+' mm. Forslag '+d.suggested+' mm etter bæreevnegruppe; 50–100 mm kan velges manuelt (pkt. 3.5.11).';
+ else if(klass==='3'||klass==='4')msg='Bæresvake perioder: bærelag beregnes med tabell 3.1 (veiklasse 2) i stedet for tabell '+ROAD_INFO[klass].source+' (pkt. 3.'+klass+'.11). Valgt veiklasse og veigeometri beholdes.';
+ else msg='Bæresvake perioder: '+d.tableBase+' mm fra tabell 3.4 + '+d.plus+' mm = '+d.total+' mm. Forslag '+d.suggested+' mm etter bæreevnegruppe; 50–100 mm kan velges manuelt (pkt. 3.5.11).'+(d.plus<d.suggested?' Valgt tillegg er lavere enn forslaget for svak underbygning; dokumenter vurderingen.':'');
  $('usageAdvice').textContent=msg;
 }
 function roadAdvice(){if(document.getElementById('road').value!=='5')return ADVICE[soil.value];
@@ -951,11 +952,11 @@ function update(){
  updateDypsprengningAdvice();
  updateRockProfileAdvice();
  $('diagram').innerHTML=renderDiagram(base,extra,ditchDraft(),synt);
- $('designSource').textContent='Bærelag: '+design.tableBase+' mm (tabell '+design.source+')'+(design.plus?' + '+design.plus+' mm = '+design.total+' mm':'')+'. '+(design.weak?'Bæresvake perioder':'Normalbruk')+'.';
+ $('designSource').textContent='Bærelag: '+design.tableBase+' mm (tabell '+design.source+')'+(design.plus?' + '+design.plus+' mm = '+design.total+' mm':'')+'. '+usageLabel()+'.';
  $('roadWidthInfo').textContent='Veibredde '+fmt2(roadInfo().width/1000)+' m: kjørebane '+fmt2(roadInfo().carriage/1000)+' m + skulder '+fmt2((roadInfo().width-roadInfo().carriage)/2000)+' m på hver side. Tosidig tverrfall 5 % er benyttet i prinsippskissen.';
  $('diagram').setAttribute('data-geosynthetic',synt);
  $('diagram').querySelector('svg')?.setAttribute('aria-description',desc(L)+'. '+desc(R));
- $('summary1').textContent='Veiklasse '+document.getElementById('road').value+'. Bæreevnegruppe '+group+' – '+SOIL_TEXT[group]+'. Bruksforutsetning: '+(design.weak?'bæresvake perioder / høy fuktighet':'normalbruk')+'.';
+ $('summary1').textContent='Veiklasse '+document.getElementById('road').value+'. Bæreevnegruppe '+group+' – '+SOIL_TEXT[group]+'. Bruksforutsetning: '+(design.klass==='2'?'helårsbruk':design.weak?'bæresvake perioder / høy fuktighet':'normalbruk')+'.';
  $('summary2').textContent='Bærelag b-'+'ABCD'[b]+' og slitelag s-'+'AB'[w]+'. Dimensjonering etter tabell '+design.source+(design.plus?' + '+design.plus+' mm tillegg':'')+'.';
  $('summary3').textContent=torvUnspecified?'Bærelag '+base+' mm og slitelag 100 mm. Forsterkningslag og samlet overbygning: IKKE DIMENSJONERT (jf. pkt. '+reinforcementNormSection()+').':'Bærelag '+base+' mm, slitelag 100 mm, forsterkningslag '+reinforcementCalc.original+' − '+reinforcementCalc.reduction+' = '+extra+' mm. Sum '+total+' mm.';
  $('summary4').textContent='Venstre: '+desc(L)+'. Høyre: '+desc(R)+'. Geosyntet: '+geosynthetic.options[geosynthetic.selectedIndex].text+'.';
@@ -1107,7 +1108,7 @@ function exportDxfString(){
  line(edgeX,planum,edgeX,edgeY,'OVERBYGNING');
  txt(-650,planum+Math.max(35,(pavement-110)/2),'OVERBYGNING '+pavement+' mm',Math.min(110,Math.max(70,pavement*.24)));
  txt(-850,340,'KJOEREBANE '+carriage+' mm',125);
- txt(-edgeX,490,'BAERELAG: TABELL '+design.source+(design.plus?' + '+design.plus+' MM':'')+' / '+(design.weak?'BAERESVAKE PERIODER':'NORMALBRUK'),95,'TEKST');
+ txt(-edgeX,490,'BAERELAG: TABELL '+design.source+(design.plus?' + '+design.plus+' MM':'')+' / '+(design.klass==='2'?'HELAARSBRUK':design.weak?'BAERESVAKE PERIODER':'NORMALBRUK'),95,'TEKST');
  txt(-edgeX,planum-1800,'UTVIKLET AV NIKOLAI MEDVEDEV OG TORLEIF KILDAL',100,'TEKST');
  txt(-edgeX,170,'SKULDER '+(road-carriage)/2+' mm',100);
  txt(laneX-580,170,'SKULDER '+(road-carriage)/2+' mm',100);
@@ -1191,7 +1192,7 @@ $('copy').addEventListener('click',async()=>{
  const reinforcementCalc=reinforcementDesign(),extra=reinforcementCalc.actual;
  const describe=(label,x)=>label+': '+(x.type==='cut'?'Skjæring':'Fylling')+', '+x.material.name+' ('+x.material.v+':'+formatNo(x.material.h)+')'+(x.type==='cut'?', med grøft':', uten grøft');
  const design=baseDesign();
- const items=['Landbruksvei Overbygningskalkulator','Utviklet av Nikolai Medvedev og Torleif Kildal','Kontakt: mednikvas@gmail.com','Veiklasse '+document.getElementById('road').value+', bæreevnegruppe '+soil.value,'Bruksforutsetning: '+(design.weak?'Bæresvake perioder / høy fuktighet':'Normalbruk'),'Bærelagstabell: '+design.source+', tabellverdi '+design.tableBase+' mm, tillegg '+design.plus+' mm','Slitelag 100 mm','Bærelag '+base+' mm','Forsterkningslag uten geonett '+reinforcementCalc.original+' mm','Reduksjon med geonett '+reinforcementCalc.reduction+' mm','Prosjektert forsterkningslag '+extra+' mm','Geosyntet '+geosynthetic.options[geosynthetic.selectedIndex].text,'Sum '+(100+base+extra)+' mm',describe('Venstre',L),describe('Høyre',R)];
+ const items=['Landbruksvei Overbygningskalkulator','Utviklet av Nikolai Medvedev og Torleif Kildal','Kontakt: mednikvas@gmail.com','Veiklasse '+document.getElementById('road').value+', bæreevnegruppe '+soil.value,'Bruksforutsetning: '+usageLabel(),'Bærelagstabell: '+design.source+', tabellverdi '+design.tableBase+' mm, tillegg '+design.plus+' mm','Slitelag 100 mm','Bærelag '+base+' mm','Forsterkningslag uten geonett '+reinforcementCalc.original+' mm','Reduksjon med geonett '+reinforcementCalc.reduction+' mm','Prosjektert forsterkningslag '+extra+' mm','Geosyntet '+geosynthetic.options[geosynthetic.selectedIndex].text,'Sum '+(100+base+extra)+' mm',describe('Venstre',L),describe('Høyre',R)];
  if(d)items.push('Grøfter i skjæring: dybde '+d.depth+' mm, bunnbredde '+d.bottom+' mm');
  const rock=rockProfileState();
  items.push('Fjellprofil: '+(rock.active?'venstre '+fmt2(rock.left)+' m, CL '+fmt2(rock.center)+' m, høyre '+fmt2(rock.right)+' m fra planum': 'Ikke aktiv'));
