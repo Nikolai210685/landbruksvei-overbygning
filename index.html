@@ -205,6 +205,21 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
       <option value="1">s-B – Knust løsmasse</option>
     </select>
 
+    <label for="usageMode">Bruksforutsetninger</label>
+    <select id="usageMode">
+      <option value="normal">Normalbruk – etter valgt veiklasse</option>
+      <option value="weak">Bruk også i bæresvake perioder / høy fuktighet</option>
+    </select>
+    <div class="note" id="usageAdvice" aria-live="polite"></div>
+    <div id="class5ExtraWrap" hidden>
+      <label for="class5Extra">Tillegg i bærelag – veiklasse 5 (mm)</label>
+      <select id="class5Extra">
+        <option value="auto">Automatisk forslag etter bæreevnegruppe (50/100 mm)</option>
+        <option value="50">50 mm (5 cm)</option>
+        <option value="100">100 mm (10 cm)</option>
+      </select>
+      <p class="muted">Normen angir minst 5–10 cm ekstra, med størst økning for bæreevnegruppe 5–7. Forslaget 50/100 mm er en prosjekteringsforutsetning som kan endres.</p>
+    </div>
     <label for="reinforcement">Forsterkningslag – dimensjonert tykkelse uten geonett (mm)</label>
     <input id="reinforcement" type="number" min="0" step="10" value="0">
     <div class="muted">Opprinnelig lagtykkelse før eventuell geonett-reduksjon. Du kan endre verdien manuelt.</div>
@@ -284,6 +299,7 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
       <p class="muted" id="roadWidthInfo"></p>
     </div>
     <div class="result-details" aria-label="Resultater og detaljer, kan rulles uavhengig av illustrasjonen">
+      <div class="note" id="designSource" aria-live="polite" style="margin-top:0"></div>
       <div class="results">
       <div class="metric"><small>Slitelag</small><strong id="wearout">100 mm</strong></div>
       <div class="metric"><small>Bærelag</small><strong id="baseout">250 mm</strong></div>
@@ -367,10 +383,32 @@ const ROAD_INFO={
 '4':{width:4000,carriage:3500,table:TABLE,source:'3.3',title:'Barmarksvei'},
 '5':{width:4000,carriage:3500,table:TABLE_5,source:'3.4',title:'Barmarksvei uten henger'}};
 const roadInfo=()=>ROAD_INFO[document.getElementById('road').value];
-const baseThickness=()=>roadInfo().table[soil.value][Number(bearing.value)][Number(wear.value)]*10;
+const usageMode=$('usageMode'),class5Extra=$('class5Extra');
+const weakUsage=()=>usageMode.value==='weak';
+const reinforcementNormSection=()=> '3.'+document.getElementById('road').value+'.10';
+const bearingNormSection=()=> '3.'+document.getElementById('road').value+'.11';
+function baseDesign(){
+ const klass=document.getElementById('road').value,weak=weakUsage(),b=Number(bearing.value),w=Number(wear.value);
+ const ref=(weak&&(klass==='3'||klass==='4'))?ROAD_INFO['2']:ROAD_INFO[klass];
+ const tableBase=ref.table[soil.value][b][w]*10;
+ const suggested=['5','6','7a','7b'].includes(soil.value)?100:50;
+ const plus=weak&&klass==='5'?(class5Extra.value==='auto'?suggested:Number(class5Extra.value)):0;
+ return {klass,weak,source:ref.source,tableBase,plus,total:tableBase+plus,suggested};
+}
+const baseThickness=()=>baseDesign().total;
+function updateUsageAdvice(){
+ const d=baseDesign(),klass=d.klass,weak=d.weak;
+ $('class5ExtraWrap').hidden=!(weak&&klass==='5');
+ let msg='';
+ if(klass==='2')msg=weak?'Veiklasse 2 er allerede dimensjonert for helårsbruk. Ingen tillegg kreves fra dette valget (pkt. 3.2.11).':'Veiklasse 2 dimensjoneres for helårsbruk med tabell 3.1.';
+ else if(!weak)msg='Normalbruk: tabell '+d.source+'. Bruk i bæresvake perioder krever sterkere dimensjonering.';
+ else if(klass==='3'||klass==='4')msg='Bæresvake perioder: bærelag beregnes med tabell 3.1 (veiklasse 2) i stedet for tabell 3.'+klass+' (pkt. 3.'+klass+'.11). Valgt veiklasse og veigeometri beholdes.';
+ else msg='Bæresvake perioder: '+d.tableBase+' mm fra tabell 3.4 + '+d.plus+' mm = '+d.total+' mm. Forslag '+d.suggested+' mm etter bæreevnegruppe; 50–100 mm kan velges manuelt (pkt. 3.5.11).';
+ $('usageAdvice').textContent=msg;
+}
 function roadAdvice(){if(document.getElementById('road').value!=='5')return ADVICE[soil.value];
 const v={'1':0,'2':0,'3':0,'4':0,'5':50,'6':150,'7a':300,'7b':null},mm=v[soil.value];
-return {mm,text:mm===null?'Ikke dimensjonert. Torvmark/myr krever særskilt vurdering av forsterkningslag og geosynteter, jf. Normaler for landbruksveier, pkt. 3.3.10.':mm===0?'Normalt ikke behov for ekstra forsterkningslag.':'Veiledende forsterkningslag, veiklasse 5: '+mm+' mm.'};}
+return {mm,text:mm===null?'Ikke dimensjonert. Torvmark/myr krever særskilt vurdering av forsterkningslag og geosynteter, jf. Normaler for landbruksveier, pkt. '+reinforcementNormSection()+'.':mm===0?'Normalt ikke behov for ekstra forsterkningslag.':'Veiledende forsterkningslag, veiklasse 5: '+mm+' mm.'};}
 const SOIL_TEXT={
  '1':'Fjellskjæring og steinfylling',
  '2':'Velgradert grus og sand',
@@ -878,7 +916,8 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  </svg>`;
 }
 function update(){
- const group=soil.value,b=Number(bearing.value),w=Number(wear.value),base=baseThickness();
+ const group=soil.value,b=Number(bearing.value),w=Number(wear.value),design=baseDesign(),base=design.total;
+ updateUsageAdvice();
  const reinforcementCalc=reinforcementDesign(),extra=reinforcementCalc.actual;
  const L=sideInfo('left'),R=sideInfo('right'),synt=geosynthetic.value,a=roadAdvice(),total=100+base+extra;
  const desc=x=>(x.type==='cut'?'Skjæring':'Fylling')+' '+x.material.name+' ('+x.material.v+':'+formatNo(x.material.h)+')';
@@ -912,19 +951,22 @@ function update(){
  updateDypsprengningAdvice();
  updateRockProfileAdvice();
  $('diagram').innerHTML=renderDiagram(base,extra,ditchDraft(),synt);
+ $('designSource').textContent='Bærelag: '+design.tableBase+' mm (tabell '+design.source+')'+(design.plus?' + '+design.plus+' mm = '+design.total+' mm':'')+'. '+(design.weak?'Bæresvake perioder':'Normalbruk')+'.';
  $('roadWidthInfo').textContent='Veibredde '+fmt2(roadInfo().width/1000)+' m: kjørebane '+fmt2(roadInfo().carriage/1000)+' m + skulder '+fmt2((roadInfo().width-roadInfo().carriage)/2000)+' m på hver side. Tosidig tverrfall 5 % er benyttet i prinsippskissen.';
  $('diagram').setAttribute('data-geosynthetic',synt);
  $('diagram').querySelector('svg')?.setAttribute('aria-description',desc(L)+'. '+desc(R));
- $('summary1').textContent='Veiklasse '+document.getElementById('road').value+'. Bæreevnegruppe '+group+' – '+SOIL_TEXT[group]+'.';
- $('summary2').textContent='Bærelag b-'+'ABCD'[b]+' og slitelag s-'+'AB'[w]+'.';
- $('summary3').textContent=torvUnspecified?'Bærelag '+base+' mm og slitelag 100 mm. Forsterkningslag og samlet overbygning: IKKE DIMENSJONERT (jf. pkt. 3.3.10).':'Bærelag '+base+' mm, slitelag 100 mm, forsterkningslag '+reinforcementCalc.original+' − '+reinforcementCalc.reduction+' = '+extra+' mm. Sum '+total+' mm.';
+ $('summary1').textContent='Veiklasse '+document.getElementById('road').value+'. Bæreevnegruppe '+group+' – '+SOIL_TEXT[group]+'. Bruksforutsetning: '+(design.weak?'bæresvake perioder / høy fuktighet':'normalbruk')+'.';
+ $('summary2').textContent='Bærelag b-'+'ABCD'[b]+' og slitelag s-'+'AB'[w]+'. Dimensjonering etter tabell '+design.source+(design.plus?' + '+design.plus+' mm tillegg':'')+'.';
+ $('summary3').textContent=torvUnspecified?'Bærelag '+base+' mm og slitelag 100 mm. Forsterkningslag og samlet overbygning: IKKE DIMENSJONERT (jf. pkt. '+reinforcementNormSection()+').':'Bærelag '+base+' mm, slitelag 100 mm, forsterkningslag '+reinforcementCalc.original+' − '+reinforcementCalc.reduction+' = '+extra+' mm. Sum '+total+' mm.';
  $('summary4').textContent='Venstre: '+desc(L)+'. Høyre: '+desc(R)+'. Geosyntet: '+geosynthetic.options[geosynthetic.selectedIndex].text+'.';
- $('warningBox').innerHTML=(group==='7b'?'<strong>IKKE DIMENSJONERT – bæreevnegruppe 7b (torvmark/myr):</strong> Normen angir ingen generell forsterkningslagstykkelse. Det kreves særskilt vurdering av overbygning og geosynteter. <strong>Henvisning:</strong> Normaler for landbruksveier, pkt. 3.3.10. Oppgitt total kan ikke brukes som ferdig dimensjonering. ':'')+'<strong>Faglig kontroll:</strong> Tabellhelningene er ikke stabilitetsdokumentasjon. Kontroller erosjon, vannmengde og lokale grunnforhold. Skissen er ikke målfast.';
+ $('warningBox').innerHTML=(group==='7b'?'<strong>IKKE DIMENSJONERT – bæreevnegruppe 7b (torvmark/myr):</strong> Normen angir ingen generell forsterkningslagstykkelse. Det kreves særskilt vurdering av overbygning og geosynteter. <strong>Henvisning:</strong> Normaler for landbruksveier, pkt. '+reinforcementNormSection()+'. Oppgitt total kan ikke brukes som ferdig dimensjonering. ':'')+'<strong>Faglig kontroll:</strong> Tabellhelningene er ikke stabilitetsdokumentasjon. Kontroller erosjon, vannmengde og lokale grunnforhold. Skissen er ikke målfast.';
 }
 ['change','input'].forEach(e=>{soil.addEventListener(e,update);bearing.addEventListener(e,update);wear.addEventListener(e,update);reinforcement.addEventListener(e,update);geosynthetic.addEventListener(e,update);});
 for(const key of ['left','right']){$(key+'Type').addEventListener('change',()=>populateSide(key));$(key+'Material').addEventListener('change',syncDypsprengningWithSlopes);}
 ditchCondition.addEventListener('change',applyDitchCondition);ditchDepth.addEventListener('input',update);ditchBottom.addEventListener('input',update);ditchInner.addEventListener('change',update);
 useGeonettReduction.addEventListener('change',update);
+usageMode.addEventListener('change',update);
+class5Extra.addEventListener('change',update);
 dypEnabled.addEventListener('change',update);
 dypMin.addEventListener('input',update);
 rockProfileEnabled.addEventListener('change',update);
