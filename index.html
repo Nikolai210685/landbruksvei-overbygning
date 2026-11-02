@@ -150,6 +150,13 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
 #diagram [data-rock-handle]:focus-visible .rock-point-core{fill:#ffdd99;stroke:#84440e}
 #diagram [data-rock-handle] .rock-point-hit{fill:transparent;stroke:transparent;stroke-width:0}
 @media (max-width:560px){.rock-profile-editor-head strong{font-size:12px}.rock-profile-editor .rock-input-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.rock-profile-editor .rock-input-grid label{font-size:10px}}
+
+/* Official standard: compact link beside the design controls. */
+.norm-reference{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:-3px 0 16px}
+.norm-open{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 13px;background:#175c7e;color:#fff;text-decoration:none;font-size:13px;font-weight:750;border-radius:10px;border:1px solid #175c7e;box-shadow:0 2px 6px rgba(23,92,126,.12)}
+.norm-open:hover,.norm-open:focus-visible{background:#0e4664;color:#fff;outline-offset:3px}
+.norm-meta{font-size:11px;color:var(--muted);line-height:1.45}
+.norm-meta a{color:var(--accent2);font-weight:650;text-decoration:underline;text-underline-offset:2px}
 </style>
 </head>
 <body>
@@ -171,6 +178,12 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
 <main>
   <section class="panel settings-panel">
     <h2>1. Prosjekteringsgrunnlag</h2>
+    <div class="norm-reference" aria-label="Gjeldende veinormal">
+      <a class="norm-open" href="https://skogkurs.no/wp-content/uploads/Normaler-for-landbruksveier-rev-2025.pdf" target="_blank" rel="noopener noreferrer" title="Åpne hele Normaler for landbruksveier som PDF i ny fane">
+        <span aria-hidden="true">📖</span> Åpne veinormalen (PDF)
+      </a>
+      <span class="norm-meta">Versjon 2 · mars 2026 · <a href="https://skogkurs.no/fagartikler/normaler-for-landbruksveier-med-byggebeskrivelse-og-veileder-for-klimatilpassning-og-naturfare/" target="_blank" rel="noopener noreferrer">Nyeste versjon hos Skogkurs ↗</a></span>
+    </div>
 
     <label for="road">Veiklasse</label>
     <select id="road">
@@ -1080,6 +1093,10 @@ function svgForDownload(){
  const svg=$('diagram').querySelector('svg');
  if(!svg)throw new Error('Ingen prinsippskisse er tilgjengelig.');
  const clone=svg.cloneNode(true);
+ // The SVG is exported without the app stylesheet. Interactive drag hit-zones
+ // would otherwise become large black circles in external SVG viewers.
+ // Keep the actual fjellprofil line and its non-interactive annotation.
+ clone.querySelectorAll('[data-rock-handle]').forEach(handle=>handle.remove());
  clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
  clone.setAttribute('xmlns:xlink','http://www.w3.org/1999/xlink');
  clone.setAttribute('width','1500');
