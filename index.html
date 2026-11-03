@@ -157,6 +157,12 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
 .norm-open:hover,.norm-open:focus-visible{background:#0e4664;color:#fff;outline-offset:3px}
 .norm-meta{font-size:11px;color:var(--muted);line-height:1.45}
 .norm-meta a{color:var(--accent2);font-weight:650;text-decoration:underline;text-underline-offset:2px}
+
+.shared-underbygning{margin-top:13px;padding:13px 15px;border:1px solid #9dc9df;border-radius:14px;background:#edf7fc}
+.shared-underbygning[hidden]{display:none!important}
+.shared-underbygning label{font-size:14px;color:#174b69;margin:0 0 7px}
+.shared-underbygning select{padding:10px 12px}
+.shared-underbygning .muted{margin:7px 0 0}
 </style>
 </head>
 <body>
@@ -272,16 +278,21 @@ footer{max-width:1180px;margin:0 auto 28px;padding:0 16px}
         <div class="side-title">Venstre side</div>
         <label for="leftType">Skråningstype</label>
         <select id="leftType"><option value="cut" selected>Skjæring – med grøft</option><option value="fill">Fylling – uten grøft</option></select>
-        <label for="leftMaterial">Materiale</label><select id="leftMaterial"></select>
+        <label for="leftMaterial">Materiale i skråning</label><select id="leftMaterial"></select>
         <div class="muted" id="leftHelp"></div>
       </div>
       <div class="side-card">
         <div class="side-title">Høyre side</div>
         <label for="rightType">Skråningstype</label>
         <select id="rightType"><option value="cut">Skjæring – med grøft</option><option value="fill" selected>Fylling – uten grøft</option></select>
-        <label for="rightMaterial">Materiale</label><select id="rightMaterial"></select>
+        <label for="rightMaterial">Materiale i skråning</label><select id="rightMaterial"></select>
         <div class="muted" id="rightHelp"></div>
       </div>
+    </div>
+    <div id="sharedCutMaterialWrap" class="shared-underbygning" hidden>
+      <label for="sharedCutMaterial">Felles materiale under overbygning</label>
+      <select id="sharedCutMaterial" aria-describedby="sharedCutMaterialHelp"></select>
+      <p class="muted" id="sharedCutMaterialHelp">Gjelder hele underbygningen mellom grøftene når begge sider er skjæring. Materialvalg og helninger for venstre og høyre skjæringsskråning beholdes uavhengig.</p>
     </div>
     <div class="note" id="slopeAdvice" aria-live="polite"></div>
     <h3>3. Veigrøft – bare ved skjæring</h3>
@@ -473,6 +484,24 @@ const SLOPE_DATA={
  ]
 };
 const $=id=>document.getElementById(id);
+const sharedCutMaterial=$('sharedCutMaterial'),sharedCutMaterialWrap=$('sharedCutMaterialWrap');
+let sharedCutMaterialInitialized=false;
+sharedCutMaterial.innerHTML=SLOPE_DATA.cut.map(mat=>
+ '<option value="'+mat.id+'">'+mat.name+'</option>').join('');
+const bothCut=()=>sideInfo('left').type==='cut'&&sideInfo('right').type==='cut';
+function sharedMaterial(){
+ return SLOPE_DATA.cut.find(mat=>mat.id===sharedCutMaterial.value)||SLOPE_DATA.cut[0];
+}
+const sharedPattern=()=>({solidrock:'rockSolid',looserock:'rockLoose',stone:'gravel',sand:'sand',moraine:'moraine',fine:'sediment'})[sharedMaterial().id];
+function updateSharedCutMaterial(){
+ const enabled=bothCut();
+ sharedCutMaterialWrap.hidden=!enabled;
+ if(enabled&&!sharedCutMaterialInitialized){
+   const leftId=$('leftMaterial').value;
+   sharedCutMaterial.value=SLOPE_DATA.cut.some(mat=>mat.id===leftId)?leftId:'solidrock';
+   sharedCutMaterialInitialized=true;
+ }
+}
 const ditchCondition=$('ditchCondition'),ditchDepth=$('ditchDepth'),ditchBottom=$('ditchBottom'),ditchInner=$('ditchInner');
 const dypEnabled=$('dypEnabled'),dypMin=$('dypMin');
 const rockProfileEnabled=$('rockProfileEnabled');
@@ -534,6 +563,7 @@ function updateDypsprengningAdvice(){
  // fast fjell (10:1) or løst fjell (2:1), including mixed rock types.
  // The checkbox remains editable so the designer can override deliberately.
  function syncDypsprengningWithSlopes(){
+  updateSharedCutMaterial();
   dypEnabled.checked=isRockCut('left')&&isRockCut('right');
   rockProfileEnabled.checked=isRockCut('left')||isRockCut('right');
   update();
@@ -615,6 +645,7 @@ function esc(s){return String(s).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">
 
 function renderDiagram(baseMm,extraMm,ditch,synt){
  const L=sideInfo('left'),R=sideInfo('right'),cx=750,half=210,py=310,baseEarth=510;
+ const commonCutMaterial=L.type==='cut'&&R.type==='cut';
  const roadWidthM=roadInfo().width/1000,carriageM=3.5,shoulderM=(roadWidthM-carriageM)/2,crossfall=.05;
  const crown=half*crossfall,carriageHalf=half*carriageM/roadWidthM;
  const total=100+baseMm+extraMm,m=Number(ditchInner.value),dep=ditch?ditch.depth:0,bot=ditch?ditch.bottom:0;
@@ -637,6 +668,17 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  const bottomRight=R.type==='fill'?rightFillToe:1480;
  const layer=(a,b)=>`M${xLeft(a)} ${a} L${cx} ${a-crown} L${xRight(a)} ${a} L${xRight(b)} ${b} L${cx} ${b-crown} L${xLeft(b)} ${b} Z`;
  const pat=s=>({solidrock:'rockSolid',looserock:'rockLoose',stone:'gravel',sand:'sand',moraine:'moraine',fine:'sediment',blasted:'rockLoose',rockgravel:'gravel',sandmoraine:'moraine'})[s.material.id]||'moraine';
+ // One continuous underbygning across both shoulders and both ditch bottoms.
+ // The two separate material selections still control the exterior cut faces.
+ function renderSharedCutFoundation(){
+   if(!commonCutMaterial)return '';
+   const yBottom=py+dep*scale;
+   const outerL=baseL-dep*scale*m-bot*scale,innerL=baseL-dep*scale*m;
+   const innerR=baseR+dep*scale*m,outerR=innerR+bot*scale;
+   const path=`M${outerL} ${yBottom} H${innerL} L${baseL} ${py} L${cx} ${py-crown} L${baseR} ${py} L${innerR} ${yBottom} H${outerR} V${baseEarth} H${outerL} Z`;
+   return `<path data-shared-underbygning="true" data-material="${sharedMaterial().id}" d="${path}" fill="url(#${sharedPattern()})" stroke="none"/>`;
+ }
+
   // Fill masses are carried down to the bottom of the section and continue beneath
  // their half of the road foundation instead of ending as hollow slope triangles.
  function renderFilling(key,side,root){
@@ -669,7 +711,7 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  const cutAtPlanum=outside+(crest-outside)*(yB-py)/(yB-yCrest);
  const voidDitch=`M${root} ${py} L${inside} ${yB} H${outside} L${cutAtPlanum} ${py} Z`;
  const depthMark=(inside+outside)/2,boxX=Math.max(15,Math.min(1205,depthMark-140));
- const rockFill=side.material.id==='looserock'?'rockLoose':'rockSolid';
+ const rockFill=pat(side);
  return `<path data-ground="${key}-rock-face" d="${exterior}" fill="url(#${rockFill})" stroke="none"/>
  <path data-ditch-clear="${key}" d="${voidDitch}" fill="#f5f9fb" stroke="none"/>
  <path d="M${crest} ${yCrest} L${outside} ${yB}" stroke="#334655" stroke-width="3" fill="none"/>
@@ -714,7 +756,7 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  const clip=makePath(terrain)+` L${terrain[terrain.length-1].x} ${baseEarth} L${terrain[0].x} ${baseEarth} Z`;
  return `<defs><clipPath id="rockProfileClip"><path d="${clip}"/></clipPath></defs>
  <g clip-path="url(#rockProfileClip)" data-rock-profile="true">
-  <path data-rock-solid-mass="true" d="${area}" fill="url(#rockSolid)" stroke="none"/>
+  <path data-rock-solid-mass="true" d="${area}" fill="url(#${commonCutMaterial&&['solidrock','looserock'].includes(sharedMaterial().id)?sharedPattern():'rockSolid'})" stroke="none"/>
   <path data-rock-profile-line="true" d="${makePath(pts)}" stroke="#c27829" stroke-width="3" stroke-linejoin="round" fill="none"/>
  </g>`;
 }
@@ -773,6 +815,8 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  }
  function renderRockCut(key,side,root){
   if(side.type!=='cut')return '';
+  // No centre seam or cut-mass overlay when the common underbygning is active.
+  if(commonCutMaterial)return renderRockFaceOnly(key,side,root);
   if(isRockCut(key))return renderRockCutEngineered(key,side,root);
   const sign=key==='left'?-1:1,rise=side.height*1000*scale;
   const yB=py+dep*scale,inside=root+sign*dep*scale*m,outside=inside+sign*bot*scale;
@@ -807,7 +851,7 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  // down to the bedrock contact. Use fill material when a fill bank exists,
  // otherwise use the ordinary underbygning texture.
  function renderCutFoundation(key,side,root){
-  if(side.type!=='cut')return '';
+  if(commonCutMaterial||side.type!=='cut')return '';
   const sign=key==='left'?-1:1,yB=py+dep*scale;
   const inside=root+sign*dep*scale*m;
   const outside=inside+sign*bot*scale;
@@ -932,6 +976,8 @@ function renderDiagram(baseMm,extraMm,ditch,synt){
  ${renderFilling('left',L,baseL)}${renderFilling('right',R,baseR)}
  <!-- Base beneath grøft is underbygning/fylling, bounded by the inclined rock contact. -->
  ${renderCutFoundation('left',L,baseL)}${renderCutFoundation('right',R,baseR)}
+ <!-- One seamless material in the common excavation foundation. -->
+ ${renderSharedCutFoundation()}
  <!-- Three-point geological profile crosses the entire road and may extend under fill. -->
  ${renderRockProfile()}
  <!-- Cut geology overlays fill where bedrock continues diagonally under the road. -->
@@ -975,6 +1021,7 @@ function update(){
  updateUsageAdvice();
  const reinforcementCalc=reinforcementDesign(),extra=reinforcementCalc.actual;
  const L=sideInfo('left'),R=sideInfo('right'),synt=geosynthetic.value,a=roadAdvice(),total=100+base+extra;
+ updateSharedCutMaterial();
  const desc=x=>(x.type==='cut'?'Skjæring':'Fylling')+' '+x.material.name+' ('+x.material.v+':'+formatNo(x.material.h)+')';
  $('leftHelp').textContent=desc(L)+(L.type==='cut'?' · med grøft':' · uten grøft');
  $('rightHelp').textContent=desc(R)+(R.type==='cut'?' · med grøft':' · uten grøft');
@@ -983,7 +1030,7 @@ function update(){
  if([L,R].some(x=>x.material.id==='fine'))cautions.push('Leire krever egen stabilitetsvurdering.');
  if([L,R].some(x=>x.type==='fill'&&x.material.id==='sandmoraine'))cautions.push('Høyt finstoffinnhold krever slakere fyllingsskråning.');
  $('slopeAdvice').textContent='Venstre: '+desc(L)+'. Høyre: '+desc(R)+'. '+cautions.join(' ');
- $('slopeSummary').textContent='Venstre: '+desc(L)+(L.type==='cut'?' med grøft':' uten grøft')+'. Høyre: '+desc(R)+(R.type==='cut'?' med grøft':' uten grøft')+'.';
+ $('slopeSummary').textContent='Venstre: '+desc(L)+(L.type==='cut'?' med grøft':' uten grøft')+'. Høyre: '+desc(R)+(R.type==='cut'?' med grøft':' uten grøft')+'.'+(bothCut()?' Felles materiale under overbygning: '+sharedMaterial().name+'.':'');
  updateDitch();
  $('reinforcementAdvice').textContent='Veiledende vurdering: '+a.text+(a.mm!==null&&reinforcementCalc.original!==a.mm?' Dimensjonert tykkelse avviker fra forslaget.':'');
  let reductionNote='';
@@ -1013,13 +1060,14 @@ function update(){
  $('summary1').textContent='Veiklasse '+document.getElementById('road').value+'. Bæreevnegruppe '+group+' – '+SOIL_TEXT[group]+'. Bruksforutsetning: '+(design.klass==='2'?'helårsbruk':design.weak?'bæresvake perioder / høy fuktighet':'normalbruk')+'.';
  $('summary2').textContent='Bærelag b-'+'ABCD'[b]+' og slitelag s-'+'AB'[w]+'. Dimensjonering etter tabell '+design.source+(design.plus?' + '+design.plus+' mm tillegg':'')+'.';
  $('summary3').textContent=torvUnspecified?'Bærelag '+base+' mm og slitelag 100 mm. Forsterkningslag og samlet overbygning: IKKE DIMENSJONERT (jf. pkt. '+reinforcementNormSection()+').':'Bærelag '+base+' mm, slitelag 100 mm, forsterkningslag '+reinforcementCalc.original+' − '+reinforcementCalc.reduction+' = '+extra+' mm. Sum '+total+' mm.';
- $('summary4').textContent='Venstre: '+desc(L)+'. Høyre: '+desc(R)+'. Geosyntet: '+geosynthetic.options[geosynthetic.selectedIndex].text+'.';
+ $('summary4').textContent='Venstre: '+desc(L)+'. Høyre: '+desc(R)+'.'+(bothCut()?' Felles underbygning: '+sharedMaterial().name+'.':'')+' Geosyntet: '+geosynthetic.options[geosynthetic.selectedIndex].text+'.';
  $('warningBox').innerHTML=(group==='7b'?'<strong>IKKE DIMENSJONERT – bæreevnegruppe 7b (torvmark/myr):</strong> Normen angir ingen generell forsterkningslagstykkelse. Det kreves særskilt vurdering av overbygning og geosynteter. <strong>Henvisning:</strong> Normaler for landbruksveier, pkt. '+reinforcementNormSection()+'. Oppgitt total kan ikke brukes som ferdig dimensjonering. ':'')+'<strong>Faglig kontroll:</strong> Tabellhelningene er ikke stabilitetsdokumentasjon. Kontroller erosjon, vannmengde og lokale grunnforhold. Skissen er ikke målfast.';
 }
 ['change','input'].forEach(e=>{soil.addEventListener(e,update);bearing.addEventListener(e,update);wear.addEventListener(e,update);reinforcement.addEventListener(e,update);geosynthetic.addEventListener(e,update);});
 for(const key of ['left','right']){$(key+'Type').addEventListener('change',()=>populateSide(key));$(key+'Material').addEventListener('change',syncDypsprengningWithSlopes);}
 ditchCondition.addEventListener('change',applyDitchCondition);ditchDepth.addEventListener('input',update);ditchBottom.addEventListener('input',update);ditchInner.addEventListener('change',update);
 useGeonettReduction.addEventListener('change',update);
+sharedCutMaterial.addEventListener('change',update);
 usageMode.addEventListener('change',update);
 class5Extra.addEventListener('change',update);
 dypEnabled.addEventListener('change',update);
@@ -1311,6 +1359,7 @@ $('copy').addEventListener('click',async()=>{
  const describe=(label,x)=>label+': '+(x.type==='cut'?'Skjæring':'Fylling')+', '+x.material.name+' ('+x.material.v+':'+formatNo(x.material.h)+')'+(x.type==='cut'?', med grøft':', uten grøft');
  const design=baseDesign();
  const items=['Landbruksvei Overbygningskalkulator','Utviklet av Nikolai Medvedev og Torleif Kildal','Kontakt: mednikvas@gmail.com','Veiklasse '+document.getElementById('road').value+', bæreevnegruppe '+soil.value,'Bruksforutsetning: '+usageLabel(),'Bærelagstabell: '+design.source+', tabellverdi '+design.tableBase+' mm, tillegg '+design.plus+' mm','Slitelag 100 mm','Bærelag '+base+' mm','Forsterkningslag uten geonett '+reinforcementCalc.original+' mm','Reduksjon med geonett '+reinforcementCalc.reduction+' mm','Prosjektert forsterkningslag '+extra+' mm','Geosyntet '+geosynthetic.options[geosynthetic.selectedIndex].text,'Sum '+(100+base+extra)+' mm',describe('Venstre',L),describe('Høyre',R)];
+ if(bothCut())items.push('Felles materiale under overbygning: '+sharedMaterial().name+' (uavhengig av skjæringsskråningene)');
  if(d)items.push('Grøfter i skjæring: dybde '+d.depth+' mm, bunnbredde '+d.bottom+' mm');
  const rock=rockProfileState();
  items.push('Fjellprofil: '+(rock.active?'venstre '+fmt2(rock.left)+' m, CL '+fmt2(rock.center)+' m, høyre '+fmt2(rock.right)+' m fra planum': 'Ikke aktiv'));
